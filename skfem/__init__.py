@@ -9,7 +9,7 @@ def _import_all_modules():
     globals_, locals_ = globals(), locals()
 
     # dynamically import all the package modules
-    for filename in os.listdir(__name__):
+    for filename in os.listdir(os.path.dirname(__file__)):
         # process all python files in directory that don't start with underscore
         # (which also keeps this module from importing itself)
         if filename == 'assembly.py' \
