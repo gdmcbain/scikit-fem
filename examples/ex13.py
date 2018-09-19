@@ -21,6 +21,7 @@ so the conductance (for unit potential difference and conductivity) is
 from skfem import *
 from skfem.models.poisson import laplace, mass, unit_load
 
+from matplotlib.pyplot import subplots
 import numpy as np
 
 from pygmsh import generate_mesh
@@ -70,8 +71,26 @@ u[dofs] = solve(*condense(A, 0.*b, u, dofs))
 u_exact = 2 * np.arctan2(mesh.p[1, :], mesh.p[0, :]) / np.pi
 u_error = u - u_exact
 print('L2 error =', np.sqrt(u_error @ asm(mass, basis) @ u_error))
-print('conductance = {:.4f} (exact = 2 ln 2 / pi = {:.4f})'.format(
-    u @ A @ u, 2 * np.log(2) / np.pi))
 
-mesh.plot(u)
-mesh.show()
+current_density = np.vstack([derivative(u, basis, basis, k)
+                             for k in range(basis.dim)])
+power_density = (current_density**2).sum(0)
+
+conductance = {'exact': 2 * np.log(2) / np.pi,
+               'quadratic form': u @ A @ u,
+               'integrated': b @ power_density}
+
+print('conductance = {:.4f} (integrated) or {:.4f} (quadratic form)'.format(
+    conductance['integrated'],
+    conductance['quadratic form']))
+print('      exact = 2 ln 2 / π ≐ {:.4f}'.format(conductance['exact']))
+
+if __name__ == '__main__':
+    fig, axes = subplots(1, 2)
+    mesh.plot(u, ax=axes[0])
+    axes[0].set_title('potential')
+    mesh.plot(power_density, ax=axes[1])
+    axes[1].set_title('power density')
+    for ax in axes:
+        ax.set_aspect('equal')
+    mesh.show()
