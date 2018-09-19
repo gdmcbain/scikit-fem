@@ -62,14 +62,26 @@ u = 0.*b
 u[mesh.boundaries['positive'].p] = 1.
 u[dofs] = solve(*condense(A, 0.*b, u, dofs))
 
+M = asm(mass, basis)
+
 u_exact = 2 * np.arctan2(mesh.p[1, :], mesh.p[0, :]) / np.pi
 u_error = u - u_exact
-print('L2 error =', np.sqrt(u_error @ asm(mass, basis) @ u_error))
+print('L2 error in potential =', np.sqrt(u_error @ M @ u_error))
 
 current_density = np.vstack([derivative(u, basis, basis, k)
                              for k in range(basis.dim)])
-power_density = (current_density**2).sum(0)
+current_density_exact = (2 * np.array([[0, -1], [1, 0]]) @ mesh.p
+                         / np.pi / (mesh.p**2).sum(0))
+current_density_error = current_density - current_density_exact
+print('L2 error in current density = ',
+      np.sqrt(np.trace(current_density_error @ M @ current_density_error.T)))
 
+power_density = (current_density**2).sum(0)
+power_density_exact = 4 / np.pi**2 / (mesh.p**2).sum(0)
+power_density_error = power_density - power_density_exact
+print('L2 error in power density = ',
+      np.sqrt(power_density_error @ M @ power_density_error))
+          
 conductance = {'exact': 2 * np.log(2) / np.pi,
                'quadratic form': u @ A @ u,
                'integrated': b @ power_density}
