@@ -152,11 +152,7 @@ class Mesh():
             tuple which has same size as the mesh dimension.
 
         """
-        for itr in range(int(self.dim())):
-            if isinstance(scale, tuple):
-                self.p[itr, :] *= scale[itr]
-            else:
-                self.p[itr, :] *= scale
+        self.p = (scale * self.p.T).T
 
     def translate(self, vec: DimTuple) -> None:
         """Translate the mesh.
