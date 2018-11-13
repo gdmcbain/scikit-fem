@@ -45,8 +45,8 @@ b = asm(unit_load, basis)
 
 I = m.interior_nodes()
 
-x = 0*b
-x[I] = solve(*condense(A, b, I=I))
+x = np.zeros_like(b)
+np.add.at(x, I, solve(*condense(A, b, I=I)))
 
 area = b @ np.ones_like(x)
 k = b @ x / area**2
