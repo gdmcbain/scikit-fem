@@ -1,11 +1,13 @@
 """
 Author: gdmcbain.
 
+.. note::
+   This example requires the external package `pygmsh <https://pypi.org/project/pygmsh/>`_, as well as the underlying free non-Python program `Gmsh <https://gmsh.info>`_.
+
 Here's another extension of examples/ex01.py, still solving the Laplace
 equation but now with mixed boundary conditions, two parts isopotential
 (charged and earthed) and the rest insulated. The isopotential parts are
-tagged during the construction of the geometry in pygmsh, as introduced in
-ex12.py.
+tagged during the construction of the geometry in pygmsh.
 
 The example is ∇²u = 0 in Ω = {(x, y) : 1 < x² + y² < 4, 0 < θ < π/2},
 where tan θ = y/x, with u = 0 on y = 0 and u = 1 on x = 0. Although these
