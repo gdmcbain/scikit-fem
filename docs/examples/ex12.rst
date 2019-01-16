@@ -1,0 +1,30 @@
+
+Boussinesq k-factor
+-------------------
+
+.. note::
+   This example requires the external package `pygmsh <https://pypi.org/project/pygmsh/>`_, as well as the underlying free non-Python program `Gmsh <https://gmsh.info>`_.
+
+In this example pygmsh is used to generate a disk, replacing the default
+square of :class:`~skfem.mesh.MeshTri` in :ref:`poisson-equation-label`.
+
+A basic postprocessing step in finite element analysis is evaluating
+linear forms over the solution. For the boundary value problem of
+:ref:`poisson-equation-label`, the integral of the solution
+(normalized by the area) is the 'Boussinesq :math:`k`-factor'; for the
+square it's roughly 0.03514, for the circle :math:`1/\pi/8 \doteq
+0.03979`. Linear forms are easily evaluated in skfem using the 1-D
+arrays assembled using the :func:`~skfem.asm.linear_form`
+decorator. In :ref:`poisson-equation-label`, the linear form required
+for simple integration happens to be the same one used on the
+right-hand side of the differential equation, so it's already to hand.
+
+Another is interpolation; i.e. evaluation of the solution at a
+specified point which isn't necessarily a node of the mesh.  For this
+problem, the maximum of the solution (normalized by the area) is the
+'Boussinesq k'-factor'; by symmetry, this occurs for squares
+(:math:`k' \doteq 0.07363`) and circles (:math:`k' = 1/\pi/4`) at the
+centre and so can be evaluated by interpolation.
+
+.. literalinclude:: ex12.py
+    :linenos:
