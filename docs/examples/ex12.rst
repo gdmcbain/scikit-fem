@@ -3,9 +3,9 @@ Boussinesq k-factor
 -------------------
 
 .. note::
-   This example requires the external package `pygmsh <https://pypi.org/project/pygmsh/>`_, as well as the underlying free non-Python program `Gmsh <https://gmsh.info>`_.
+   This example requires the external package `dmsh <https://pypi.org/project/dmsh/>`_.
 
-In this example pygmsh is used to generate a disk, replacing the default
+In this example _dmsh_ is used to generate a disk, replacing the default
 square of :class:`~skfem.mesh.MeshTri` in :ref:`poisson-equation-label`.
 
 A basic postprocessing step in finite element analysis is evaluating

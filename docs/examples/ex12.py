@@ -3,14 +3,10 @@ from skfem.models.poisson import laplace, unit_load
 
 import numpy as np
 
-from pygmsh import generate_mesh
-from pygmsh.built_in import Geometry
+import dmsh
 
-geom = Geometry()
-geom.add_physical_surface(geom.add_circle([0.] * 3, 1., .5**3).plane_surface,
-                          'disk')
-points, cells = generate_mesh(geom)[:2]
-m = MeshTri(points[:, :2].T, cells['triangle'].T)
+m = MeshTri(*map(np.transpose,
+                 dmsh.generate(dmsh.Circle([0., 0.], 1.), .1)))
 
 basis = InteriorBasis(m, ElementTriP2())
 
