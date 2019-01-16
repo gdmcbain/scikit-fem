@@ -36,6 +36,7 @@ postprocessing:
 
 .. toctree::
    
+   examples/ex12
    examples/ex17
    examples/ex18
    examples/ex19
