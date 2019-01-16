@@ -11,7 +11,7 @@ square of :class:`~skfem.mesh.MeshTri` in :ref:`poisson-equation-label`.
 A basic postprocessing step in finite element analysis is evaluating
 linear forms over the solution. For the boundary value problem of
 :ref:`poisson-equation-label`, the integral of the solution
-(normalized by the area) is the 'Boussinesq :math:`k`-factor'; for the
+(normalized by the area) is the 'Boussinesq :math:`k`-factor' [1]_; for the
 square it's roughly 0.03514, for the circle :math:`1/\pi/8 \doteq
 0.03979`. Linear forms are easily evaluated in skfem using the 1-D
 arrays assembled using the :func:`~skfem.asm.linear_form`
@@ -25,6 +25,11 @@ problem, the maximum of the solution (normalized by the area) is the
 'Boussinesq k'-factor'; by symmetry, this occurs for squares
 (:math:`k' \doteq 0.07363`) and circles (:math:`k' = 1/\pi/4`) at the
 centre and so can be evaluated by interpolation.
+
+References
+==========
+.. [1] Dryden, H. L., F. D. Murnaghan, & H. Bateman
+       (1956). _Hydrodynamics._ Dover, p. 178
 
 .. literalinclude:: ex12.py
     :linenos:
