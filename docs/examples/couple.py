@@ -57,7 +57,7 @@ H = heat_transfer_coefficient * asm(mass, outside_basis)
 
 temperature = np.zeros(basis.N)
 
-# TODO: Solving a Dirichlet problem in the wire and a Neumann problem in the insulation is counterintuitive given the relative thermal conductivities; however, the wire is landlocked so this avoids having to deal with a pure Neumann problem.
+# TODO: Solving a Dirichlet problem in the wire and a Neumann problem in the insulation is counterintuitive given the relative thermal conductivities; however, the wire is landlocked so this avoids having to deal with a pure Neumann problem for the moment.
 
 def solve_wire():
     """solve Dirichlet problem in wire"""
