@@ -23,7 +23,6 @@ def make_mesh(a: float,         # radius of wire
     origin = np.zeros(3)
     geom = Geometry()
     wire = geom.add_circle(origin, a, dx, make_surface=True)
-    geom.add_physical(wire.line_loop.lines, 'interface')
     geom.add_physical(wire.plane_surface, 'wire')
     insulation = geom.add_circle(origin, b, dx, holes=[wire.line_loop])
     geom.add_physical(insulation.plane_surface, 'insulation')
@@ -33,14 +32,6 @@ def make_mesh(a: float,         # radius of wire
 
 
 mesh = make_mesh(*radii)
-
-
-# @bilinear_form
-# def conduction(u, du, v, dv, w):
-#     return w.w * sum(du * dv)
-
-
-convection = mass
 
 element = ElementTriP1()
 basis = InteriorBasis(mesh, element)
