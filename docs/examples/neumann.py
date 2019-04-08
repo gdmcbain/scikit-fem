@@ -3,6 +3,7 @@ from skfem.models.poisson import laplace, mass, unit_load
 
 import numpy as np
 from scipy.optimize import root
+from scipy.sparse.linalg import LinearOperator, cg
 
 from pygmsh import generate_mesh
 from pygmsh.built_in import Geometry
@@ -98,50 +99,49 @@ L = asm(laplace, basis)
 f = joule_heating * asm(unit_load, basis)
 H = heat_transfer_coefficient * asm(mass, outside_basis)
 
-temperature = {s: np.zeros(basis.N) for s in mesh.subdomains}
 
 @linear_form
 def interflux(v, dv, w):
     return v * w[0]
 
 
-# temperature['wire'][closed['wire']] = solve(*condense(
-#     thermal_conductivity['wire'] * L + H,
-#     f + asm(interflux, interface_basis, w=interface_basis.interpolate(embed(compatible_flux(flux)))),
-#     I=closed['wire']))
-
 
 def mismatch(t: Dict[str, np.ndarray]) -> np.ndarray:
     return t['wire'][interface_dofs] - t['insulation'][interface_dofs]
 
 
-link_dof = interface_dofs[0]    # for Neumann problem on wire
-wire_dofs = np.setdiff1d(closed['wire'], [link_dof])
 
+def solve_temperatures(flux: np.ndarray,
+                       eps: float=1e-3) -> Dict[str, np.ndarray]:
+    temperature = {'insulation': np.zeros(basis.N)}
+    flux1 = embed(compatible_flux(flux))
+    ff = asm(interflux, interface_basis, w=interface_basis.interpolate(flux1))
+    temperature['insulation'][closed['insulation']] = solve(*condense(
+        thermal_conductivity['insulation'] * L + H, -ff, I=closed['insulation']))
+    temperature['wire'] = np.zeros_like(temperature['insulation'])
+    temperature['wire'][closed['wire']] = solve(*condense(thermal_conductivity['wire'] * L,
+                                                          f + ff,
+                                                          I=closed['wire']))
+    temperature['wire'] -= (temperature['wire'][interface_dofs[0]]
+                            - temperature['insulation'][interface_dofs[0]])
+    return temperature
+
+    
 def poincare_steklov(flux: np.ndarray) -> np.ndarray:
     """return the mismatch in temperature corresponding to a given heat flux"""
-    # TODO: Parallelize
-    # TODO: Remove the null space for the Neumann problem in the wire
-    temperature['wire'] = np.zeros(basis.N)
-    temperature['wire'][link_dof] = temperature['insulation'][link_dof]
-    temperature['wire'][wire_dofs] = solve(*condense(
-        thermal_conductivity['wire'] * L + H,
-        f + asm(interflux, interface_basis,
-                w=interface_basis.interpolate(embed(compatible_flux(flux)))),
-        temperature['wire'],
-        I=wire_dofs))
-    temperature['insulation'][closed['insulation']] = solve(*condense(
-        thermal_conductivity['insulation'] * L,
-        -asm(interflux, interface_basis,
-             w=interface_basis.interpolate(embed(compatible_flux(flux)))),
-        I=closed['insulation']))
-    return mismatch(temperature)
+    return mismatch(solve_temperatures(flux))
 
 
-flux = np.arange(len(interface_dofs)) / 2
-print(flux)
-print(poincare_steklov(flux))
-print(root(poincare_steklov, flux))
+A0 = poincare_steklov(np.zeros(len(interface_dofs)))
+print('A0:', A0)
+A = LinearOperator((len(interface_dofs),) * 2, lambda q: poincare_steklov(q) - A0, dtype=float)
+solution = cg(A, np.zeros(len(interface_dofs)))                   
+print('solution:', solution)
+flux = solution.x
+print('flux:', flux)
+temperature = solve_temperatures(flux)
+print('wire temperature:', temperature['wire'][closed['wire']])
+print('insulation temperature:', temperature['insulation'][closed['insulation']])
 
 
 if __name__ == '__main__':
@@ -149,5 +149,17 @@ if __name__ == '__main__':
     from os.path import splitext
     from sys import argv
 
-    mesh.plot(temperature['wire'], colorbar=True)
-    mesh.savefig(splitext(argv[0])[0] + '_solution.png')
+    T0 = {'skfem': basis.interpolator(temperature['wire'])(np.zeros((2, 1)))[0],
+          'exact':
+          (joule_heating * radii[0]**2 / 4 / thermal_conductivity['wire'] *
+           (2 * thermal_conductivity['wire'] / radii[1]
+            / heat_transfer_coefficient
+            + (2 * thermal_conductivity['wire']
+               / thermal_conductivity['insulation']
+               * np.log(radii[1] / radii[0])) + 1))}
+
+    print('Central temperature:', T0)
+
+    for s in mesh.subdomains:
+        mesh.plot(temperature[s], colorbar=True)
+        mesh.savefig(splitext(argv[0])[0] + f'_{s}_solution.png')
