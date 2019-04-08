@@ -9,7 +9,6 @@ from pygmsh.built_in import Geometry
 from typing import Optional, Dict
 
 
-
 radii = [2., 3.]
 joule_heating = 5.
 heat_transfer_coefficient = 7.
