@@ -1,12 +1,14 @@
-from typing import Optional, Dict
+from skfem import *
+from skfem.models.poisson import laplace, mass, unit_load
 
 import numpy as np
 
 from pygmsh import generate_mesh
 from pygmsh.built_in import Geometry
 
-from skfem import *
-from skfem.models.poisson import laplace, mass, unit_load
+from typing import Optional, Dict
+
+
 
 radii = [2., 3.]
 joule_heating = 5.
