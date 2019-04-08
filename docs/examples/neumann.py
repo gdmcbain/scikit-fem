@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict
 
 import numpy as np
 
@@ -35,6 +35,18 @@ mesh = make_mesh(*radii)
 
 element = ElementTriP1()
 basis = InteriorBasis(mesh, element)
+wire_basis = InteriorBasis(mesh, element, elements=mesh.subdomains['wire'])
+
+@functional
+def unit_integrand(w):
+    return 1.
+
+
+discrete_net_generation = joule_heating * sum(asm(unit_integrand, wire_basis))
+print('Net generation: {0} (cf. exact {1})'.format(discrete_net_generation,
+                                                   joule_heating * np.pi * radii[0]**2))
+
+
 
 closed = {s: np.unique(basis.element_dofs[:, d])
           for s, d in mesh.subdomains.items()}
@@ -47,21 +59,80 @@ interior = {s: np.setdiff1d(d, interface_dofs) for s, d in closed.items()}
 outside_basis = FacetBasis(mesh, element,
                            facets=mesh.boundaries['convection'])
 
+
+@functional
+def net_interflux(w):
+    return w[0]
+
+
+def embed(v: np.ndarray) -> np.ndarray:
+    w = np.zeros(basis.N)
+    w[interface_dofs] = v
+    return w
+
+
+flux = np.ones(len(interface_dofs))
+unit_flux = sum(asm(net_interflux, interface_basis, w=interface_basis.interpolate(embed(flux))))
+print('Net flux: {0} (cf. exact {1})'.format(
+    unit_flux,
+    2 * np.pi * radii[0]))
+
+
+def incompatibility(flux: np.ndarray) -> float:
+    return (sum(asm(net_interflux, interface_basis, w=interface_basis.interpolate(embed(flux))))
+            - discrete_net_generation)
+
+
+def compatible_flux(flux: np.ndarray) -> np.ndarray:
+    return flux - incompatibility(flux) * np.ones(len(interface_dofs)) / unit_flux
+    
+
+print('Incompatibility: {}'.format(
+    incompatibility(flux)))
+print('Incompatibility: {}'.format(
+    incompatibility(compatible_flux(flux))))
+
 L = asm(laplace, basis)
 f = joule_heating * asm(unit_load, basis)
 H = heat_transfer_coefficient * asm(mass, outside_basis)
 
-temperature = np.zeros(basis.N)
+temperature = {s: np.zeros(basis.N) for s in mesh.subdomains}
 
-## Cheat for the moment.  Assuming radial symmetry, the flux across
-## the interface into the insulation has to be uniform and can be
-## deduced from the integral of the Joule heating over the wire as
-## radii[0] * joule_heating / 2.
+@linear_form
+def interflux(v, dv, w):
+    return v * w[0]
 
-temperature[closed['insulation']] = solve(*condense(
-    thermal_conductivity['insulation'] * L + H,
-    radii[0] * joule_heating * asm(unit_load, interface_basis),
-    I=closed['insulation']))
+
+# temperature['wire'][closed['wire']] = solve(*condense(
+#     thermal_conductivity['wire'] * L + H,
+#     f + asm(interflux, interface_basis, w=interface_basis.interpolate(embed(compatible_flux(flux)))),
+#     I=closed['wire']))
+
+
+def mismatch(t: Dict[str, np.ndarray]) -> np.ndarray:
+    return t['wire'][interface_dofs] - t['insulation'][interface_dofs]
+
+
+def poincare_steklov(flux: np.ndarray) -> np.ndarray:
+    """return the mismatch in temperature corresponding to a given heat flux"""
+    # TODO: Parallelize
+    temperature['wire'][closed['wire']] = solve(*condense(
+        thermal_conductivity['wire'] * L + H,
+        f + asm(interflux, interface_basis,
+                w=interface_basis.interpolate(embed(compatible_flux(flux)))),
+        I=closed['wire']))
+    temperature['insulation'][closed['insulation']] = solve(*condense(
+        thermal_conductivity['insulation'] * L,
+        -asm(interflux, interface_basis,
+             w=interface_basis.interpolate(embed(compatible_flux(flux)))),
+        I=closed['insulation']))
+    # END TODO
+    return mismatch(temperature)
+
+
+flux = np.arange(len(interface_dofs)) / 2
+print(flux)
+print(poincare_steklov(flux))
     
 
 if __name__ == '__main__':
@@ -69,5 +140,5 @@ if __name__ == '__main__':
     from os.path import splitext
     from sys import argv
 
-    mesh.plot(temperature, colorbar=True)
+    mesh.plot(temperature['wire'], colorbar=True)
     mesh.savefig(splitext(argv[0])[0] + '_solution.png')
