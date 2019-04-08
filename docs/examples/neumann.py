@@ -2,6 +2,7 @@ from skfem import *
 from skfem.models.poisson import laplace, mass, unit_load
 
 import numpy as np
+from scipy.optimize import root
 
 from pygmsh import generate_mesh
 from pygmsh.built_in import Geometry
@@ -114,27 +115,34 @@ def mismatch(t: Dict[str, np.ndarray]) -> np.ndarray:
     return t['wire'][interface_dofs] - t['insulation'][interface_dofs]
 
 
+link_dof = interface_dofs[0]    # for Neumann problem on wire
+wire_dofs = np.setdiff1d(closed['wire'], [link_dof])
+
 def poincare_steklov(flux: np.ndarray) -> np.ndarray:
     """return the mismatch in temperature corresponding to a given heat flux"""
     # TODO: Parallelize
-    temperature['wire'][closed['wire']] = solve(*condense(
+    # TODO: Remove the null space for the Neumann problem in the wire
+    temperature['wire'] = np.zeros(basis.N)
+    temperature['wire'][link_dof] = temperature['insulation'][link_dof]
+    temperature['wire'][wire_dofs] = solve(*condense(
         thermal_conductivity['wire'] * L + H,
         f + asm(interflux, interface_basis,
                 w=interface_basis.interpolate(embed(compatible_flux(flux)))),
-        I=closed['wire']))
+        temperature['wire'],
+        I=wire_dofs))
     temperature['insulation'][closed['insulation']] = solve(*condense(
         thermal_conductivity['insulation'] * L,
         -asm(interflux, interface_basis,
              w=interface_basis.interpolate(embed(compatible_flux(flux)))),
         I=closed['insulation']))
-    # END TODO
     return mismatch(temperature)
 
 
 flux = np.arange(len(interface_dofs)) / 2
 print(flux)
 print(poincare_steklov(flux))
-    
+print(root(poincare_steklov, flux))
+
 
 if __name__ == '__main__':
 
