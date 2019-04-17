@@ -18,19 +18,19 @@ def jacobian_solver(step,
                     rhs: np.ndarray) -> np.ndarray:
     duvp = step.make_vector() - uvp
     u = step.basis['u'].interpolate(step.split(uvp)[0])
-    A = (step.S
-         + reynolds * block_diag([asm(acceleration_jacobian,
-                                      step.basis['u'], w=u),
-                                  csr_matrix((step.basis['p'].N,)*2)]))
-    A1 = condense(A, I=step.I)
-    _, rhs1 = condense(A, rhs, duvp, I=step.I)
-    duvp[step.I], info = gmres(A1, rhs1, step.lu0.solve(rhs1), 1e-12,
-                               M=build_pc_ilu(A1))
-
-    if info:
-        raise RuntimeError(info)
-    else:
-        return duvp
+    A1, rhs1 = condense(step.S + reynolds *
+                        block_diag([asm(acceleration_jacobian,
+                                        step.basis['u'], w=u),
+                                    csr_matrix((step.basis['p'].N,)*2)]),
+                        rhs, duvp, I=step.I)
+    duvp[step.I] = solve(A1, rhs1,
+                         solver=solver_iter_krylov(
+                             gmres,
+                             build_pc_ilu(A1),
+                             solve(step.lu0, rhs1,
+                                   solver=lambda A, b: A.solve(b)),
+                             tol=1e-12))
+    return duvp
 
 
 bfs.lu0 = splu(condense(bfs.S, I=bfs.I).T)
