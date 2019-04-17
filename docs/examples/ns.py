@@ -4,7 +4,7 @@ from typing import Tuple
 from matplotlib.pyplot import subplots
 import numpy as np
 from scipy.sparse import bmat, block_diag, csr_matrix
-from scipy.sparse.linalg import splu
+from scipy.sparse.linalg import splu, spilu, LinearOperator, gmres
 
 from pygmsh import generate_mesh
 from pygmsh.built_in import Geometry
@@ -203,13 +203,20 @@ class BackwardFacingStep:
                         rhs: np.ndarray) -> np.ndarray:
         duvp = self.make_vector() - uvp
         u = self.basis['u'].interpolate(self.split(uvp)[0])
-        duvp[self.I] = solve(*condense(
-            self.S +
-            reynolds
-            * block_diag([asm(acceleration_jacobian, self.basis['u'], w=u),
-                          csr_matrix((self.basis['p'].N,)*2)]),
-            rhs, duvp, I=self.I))
-        return duvp
+        A = (self.S
+             + reynolds * block_diag([asm(acceleration_jacobian,
+                                          self.basis['u'], w=u),
+                                      csr_matrix((self.basis['p'].N,)*2)]))
+        A1 = condense(A, I=self.I)
+        ilu = spilu(A1, 1e-5 * 1., 1e1 * 1.)
+        _, rhs1 = condense(A, rhs, duvp, I=self.I)
+        duvp[self.I], info = gmres(A1, rhs1, self.lu0.solve(rhs1), 1e-12,
+                                   M=LinearOperator(ilu.L.shape, ilu.solve))
+        
+        if info:
+            raise RuntimeError(info)
+        else:
+            return duvp
 
 
 bfs = BackwardFacingStep(lcar=.2)
@@ -254,6 +261,7 @@ if __name__ == '__main__':
     try:
         natural(bfs, uvp0, 0., callback,
                 lambda_stepsize0=50.,
-                lambda_stepsize_max=150.)
+                lambda_stepsize_max=150.,
+                newton_tol=1e-9)
     except RangeException:
         print(f'Reynolds number sweep complete: {re}.')
