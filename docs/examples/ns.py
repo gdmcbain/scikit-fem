@@ -4,6 +4,7 @@ from typing import Tuple
 from matplotlib.pyplot import subplots
 import numpy as np
 from scipy.sparse import bmat, block_diag, csr_matrix
+from scipy.sparse.linalg import splu
 
 from pygmsh import generate_mesh
 from pygmsh.built_in import Geometry
@@ -56,6 +57,7 @@ class BackwardFacingStep:
         B = asm(divergence, self.basis['u'], self.basis['p'])
         self.S = bmat([[A, -B.T],
                        [-B, None]]).tocsr()
+        self.SLU = splu(self.S.T)
         self.I = np.setdiff1d(np.arange(self.S.shape[0]), self.D)
         
     def make_geom(self, length: float, lcar: float) -> Geometry:
@@ -113,7 +115,9 @@ class BackwardFacingStep:
     def creeping(self):
         """return the solution for zero Reynolds number"""
         uvp = self.make_vector()
-        uvp[self.I] = solve(*condense(self.S, np.zeros_like(uvp), uvp, self.I))
+        S0, rhs = condense(self.S, np.zeros_like(uvp), uvp, self.I)
+        self.lu0 = splu(S0.T)   # S0.T == S0 but avoids SparseEfficiencyWarning
+        uvp[self.I] = self.lu0.solve(rhs)
         return uvp
 
     def split(self, solution: np.ndarray) -> Tuple[np.ndarray,
