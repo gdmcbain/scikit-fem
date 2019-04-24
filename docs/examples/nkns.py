@@ -1,4 +1,4 @@
-from ns import *
+from ex27 import *
 
 from scipy.sparse.linalg import splu, spilu, gmres, LinearOperator
 
@@ -43,11 +43,10 @@ if __name__ == '__main__':
     from os.path import splitext
     from sys import argv
 
-    try:
-        natural(bfs, bfs.creeping(), 0.,
-                partial(callback, name=splitext(argv[0])[0]),
-                lambda_stepsize0=50.,
-                lambda_stepsize_max=150.,
-                newton_tol=1e-9)
-    except RangeException:
-        print(f'Reynolds number sweep complete: {re}.')
+    milestones = [150., 450., 750.]
+    natural(bfs, bfs.make_vector(), 0.,
+            partial(callback,
+                    name=splitext(argv[0])[0],
+                    milestones=milestones),
+            lambda_stepsize0=50.,
+            milestones=milestones)
