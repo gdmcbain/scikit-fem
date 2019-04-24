@@ -217,7 +217,8 @@ def solver_iter_pcg(pc: Optional[spmatrix] = None,
         A solver function that can be passed to :func:`solve`.
 
     """
-    return solver_iter_krylov(pc, guess, maxiter, tol, verbose)
+    return solver_iter_krylov(
+        pc=pc, guess=guess, maxiter=maxiter, tol=tol, verbose=verbose)
 
 
 def solve(A: spmatrix,
