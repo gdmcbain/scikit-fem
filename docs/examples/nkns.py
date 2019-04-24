@@ -6,9 +6,8 @@ from scipy.sparse.linalg import splu, spilu, gmres, LinearOperator
 def creeping(step):
     """return the solution for zero Reynolds number"""
     uvp = step.make_vector()
-    uvp[step.I] = solve(step.lu0,
-                        condense(step.S, np.zeros_like(uvp), uvp, step.I)[1],
-                        lambda A, b: A.solve(b))
+    uvp[step.I] = step.lu0.solve(
+        condense(step.S, np.zeros_like(uvp), uvp, step.I)[1])
     return uvp
 
 
@@ -27,8 +26,7 @@ def jacobian_solver(step,
                          solver=solver_iter_krylov(
                              gmres,
                              build_pc_ilu(A1),
-                             solve(step.lu0, rhs1,
-                                   solver=lambda A, b: A.solve(b)),
+                             step.lu0.solve(rhs1),
                              tol=1e-12))
     return duvp
 
