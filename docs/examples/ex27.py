@@ -19,20 +19,38 @@ from pacopy import natural
 
 @linear_form
 def acceleration(v, dv, w):
-    """Compute the vector (v, u . grad u) for given velocity u."""
+    """Compute the vector (v, u . grad u) for given velocity u
+
+    passed in via w after having been interpolated onto its quadrature
+    points.
+
+    In Cartesian tensorial indicial notation, the integrand is
+
+    .. math::
+
+        u_j u_{i,j} v_i.
+
+    """
     u, du = w.w, w.dw
-    # TODO: Handle the indices more cleverly
-    return (v[0] * (u[0] * du[0][0] + u[1] * du[0][1])
-            + v[1] * (u[0] * du[1][0] + u[1] * du[1][1]))
+    return sum(np.einsum('j...,ij...->i...', u, du) * v)
 
 
 @bilinear_form
 def acceleration_jacobian(u, du, v, dv, w):
-    """Compute (v, w . grad u + u . grad w) for given velocity w"""
-    return (v[0] * (w.w[0] * du[0][0] + w.w[1] * du[0][1]
-                    + u[0] * w.dw[0][0] + u[1] * w.dw[0][1])
-            + v[1] * (w.w[0] * du[1][0] + w.w[1] * du[1][1]
-                      + u[0] * w.dw[1][0] + u[1] * w.dw[1][1]))
+    """Compute (v, w . grad u + u . grad w) for given velocity w
+
+    passed in via w after having been interpolated onto its quadrature
+    points.
+
+    In Cartesian tensorial indicial notation, the integrand is
+
+    .. math::
+
+       (w_j du_{i,j} + u_j dw_{i,j}) v_i
+
+    """
+    return sum((np.einsum('j...,ij...->i...', w.w, du)
+                + np.einsum('j...,ij...->i...', u, w.dw)) * v)
 
 
 class BackwardFacingStep:
@@ -228,7 +246,7 @@ if __name__ == '__main__':
     from os.path import splitext
     from sys import argv
 
-    milestones = [150., 450., 750.]
+    milestones = [50., 150., 450., 750.]
     natural(bfs, bfs.make_vector(), 0.,
             partial(callback,
                     name=splitext(argv[0])[0],
