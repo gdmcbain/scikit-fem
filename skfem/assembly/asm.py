@@ -14,7 +14,7 @@ def asm_elemental(kernel,
         ubasis: GlobalBasis,
         vbasis: Optional[GlobalBasis] = None,
         w: Optional[Any] = (None, None, None),
-        nthreads: int = 1) -> Tuple[csr_matrix, Tuple(ndarray, ndarray)]:
+        nthreads: int = 1) -> Tuple[csr_matrix, Tuple[ndarray, ndarray]]:
     
     """Assemble finite element matrices and vectors.
 
