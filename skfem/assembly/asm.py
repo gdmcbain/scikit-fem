@@ -154,9 +154,16 @@ def asm(kernel,
     if vbasis is None:
         vbasis = ubasis
 
+    nargs = len(signature(kernel).parameters)
+    
+    if nargs == 6:
+        K = coo_matrix(asm_elemental(kernel, ubasis, vbasis, w, nthreads),
+                       shape=(vbasis.N, ubasis.N))
+        K.eliminate_zeros()
+        return K.tocsr()
+
     nt = ubasis.nelems
     dx = ubasis.dx
-    nargs = len(signature(kernel).parameters)
 
     if type(w) is list:
         w = zip(*w)
@@ -173,13 +180,7 @@ def asm(kernel,
     
     w = FormParameters(*w, **ubasis.default_parameters())
     
-    if nargs == 6:
-        K = coo_matrix(*asm_elemental(kernel, ubasis, vbasis, w, nthreads),
-                       shape=(vbasis.N, ubasis.N))
-        K.eliminate_zeros()
-        return K.tocsr()
-
-    elif nargs == 5:
+    if nargs == 5:
         data = np.zeros((vbasis.Nbfun, nt))
         rows = np.zeros(vbasis.Nbfun * nt)
         cols = np.zeros(vbasis.Nbfun * nt)
