@@ -1,8 +1,12 @@
 .. _ex18:
 
-Example: Creeping flow
-----------------------
 
+Creeping flow
+-------------
+
+.. note::
+   This example requires the external package `pygmsh <https://pypi.org/project/pygmsh/>`_.
+   
 The stream-function :math:`\psi` for two-dimensional creeping flow is
 governed by the biharmonic equation
 
@@ -29,7 +33,15 @@ polynomial solution with circular stream-lines:
 .. math::
     \psi = \left(1 - (x^2+y^2)/a^2\right)^2 / 64.
 
+.. figure:: ex20_stream-lines.png
+
+   The solved stream-lines
+
+.. figure:: ex20_velocity-vectors.png
+
+   The solved velocity field
+    
 The complete source code reads as follows:
 
-.. literalinclude:: creeping.py
+.. literalinclude:: ex20.py
     :linenos:

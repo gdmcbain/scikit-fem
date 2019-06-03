@@ -1,9 +1,3 @@
-"""
-Author: kinnala
-
-Solve the linear elastic eigenvalue problem.
-"""
-
 from skfem import *
 from skfem.models.elasticity import linear_elasticity
 from scipy.sparse.linalg import eigsh
@@ -15,17 +9,17 @@ m = m1*m2
 
 e1 = ElementQuad1()
 
-map = MappingIsoparametric(m, e1)
+mapping = MappingIsoparametric(m, e1)
 
 e = ElementVectorH1(e1)
 
-gb = InteriorBasis(m, e, map, 2)
+gb = InteriorBasis(m, e, mapping, 2)
 
 K = asm(linear_elasticity(1.0, 1.0), gb)
 
 @bilinear_form
 def mass(u, du, v, dv, w):
-    return u[0]*v[0] + u[1]*v[1]
+    return u[0] * v[0] + u[1] * v[1]
 
 M = asm(mass, gb)
 

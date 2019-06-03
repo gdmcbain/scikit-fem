@@ -3,14 +3,15 @@ import matplotlib.pyplot as plt
 
 from skfem.mesh import Mesh, MeshType
 
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Optional
 
 from numpy import ndarray
 from matplotlib.axes import Axes
 
+
 class Mesh2D(Mesh):
     """Two dimensional meshes, common methods.
-    
+
     See the following implementations:
 
     - :class:`~skfem.mesh.MeshTri`, triangular mesh
@@ -56,7 +57,7 @@ class Mesh2D(Mesh):
         """
         mx = np.sum(self.p[0, self.t], axis=0)/self.t.shape[0]
         my = np.sum(self.p[1, self.t], axis=0)/self.t.shape[0]
-        return np.nonzero(test(mx, my))[0]    
+        return np.nonzero(test(mx, my))[0]
 
     def draw(self,
              ax: Optional[Axes] = None,
@@ -91,6 +92,7 @@ class Mesh2D(Mesh):
             fig = plt.figure()
             ax = fig.add_subplot(111)
             ax.set_aspect(aspect)
+            ax.set_axis_off()
         # visualize the mesh faster plotting is achieved through
         # None insertion trick.
         xs = []
@@ -145,42 +147,11 @@ class Mesh2D(Mesh):
 
         return meshclass(points, tris)
 
-    def save(self,
-            filename: str,
-            pointData: Optional[Union[ndarray, Dict[str, ndarray]]] = None,
-            cellData: Optional[Union[ndarray, Dict[str, ndarray]]] = None) -> None:
-        """Export the mesh and fields using meshio. (2D version.)
-
-        Parameters
-        ----------
-        filename
-            The filename for vtk-file.
-        pointData
-            Data related to the vertices of the mesh. Numpy array for one
-            output or dict for multiple.
-        cellData
-            Data related to the elements of the mesh. Numpy array for one
-            output or dict for multiple
-
-        """
-        import meshio
-
-        if pointData is not None:
-            if type(pointData) != dict:
-                pointData = {'0':pointData}
-
-        if cellData is not None:
-            if type(cellData) != dict:
-                cellData = {'0':cellData}
-
-        cells = { self.meshio_type : self.t.T }
-        mesh = meshio.Mesh(self.p.T, cells, pointData, cellData)
-        meshio.write(filename, mesh)
-
     def param(self) -> float:
-        """Return mesh parameter."""
-        return np.max(np.sqrt(np.sum((self.p[:, self.facets[0, :]] -
-                                      self.p[:, self.facets[1, :]])**2, axis=0)))
+        """Return mesh parameter, viz. the length of the longest edge."""
+        return np.max(np.linalg.norm(np.diff(self.p[:, self.facets], axis=1),
+                                     axis=0))
+
     @staticmethod
     def strip_extra_coordinates(p: ndarray) -> ndarray:
         return p[:, :2]

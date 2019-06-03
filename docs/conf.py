@@ -16,22 +16,11 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
-# notebook header
-nbsphinx_prolog = r"""
-{% set docname = env.doc2path(env.docname, base="docs") %}
-
-.. note::
-   This page was generated from a Jupyter notebook. You can `try out the example
-   <https://mybinder.org/v2/gh/kinnala/scikit-fem/master?filepath={{ docname }}>`_
-   interactively in your browser.
-
-"""
-
 # -- Project information -----------------------------------------------------
 
 project = 'scikit-fem'
-copyright = '2018, Tom Gustafsson'
-author = 'Tom Gustafsson'
+copyright = '2018, Tom Gustafsson, Geordie McBain'
+author = 'Tom Gustafsson, Geordie McBain'
 
 
 import re
@@ -54,8 +43,6 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
-    'nbsphinx',
-    'IPython.sphinxext.ipython_console_highlighting',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -145,7 +132,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'scikit-fem.tex', 'scikit-fem Documentation',
-     'Tom Gustafsson', 'manual'),
+     author, 'manual'),
 ]
 
 
@@ -175,3 +162,4 @@ texinfo_documents = [
 
 import matplotlib
 matplotlib.use('agg')
+

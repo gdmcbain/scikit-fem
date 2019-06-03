@@ -3,7 +3,9 @@ from skfem.models.elasticity import linear_elasticity,\
                                     lame_parameters
 import numpy as np
 
-m = MeshTet.load("../meshes/beams.msh")
+from pathlib import Path
+
+m = MeshTet.load(str(Path(__file__).with_name("beams.msh")))
 e1 = ElementTetP1()
 e = ElementVectorH1(e1)
 
@@ -38,4 +40,5 @@ if __name__ == "__main__":
     sf = 2.0
     MeshTet(np.array([m.p[0, :] + sf*y[ib.nodal_dofs[0, :]],\
                       m.p[1, :] + sf*y[ib.nodal_dofs[1, :]],
-                      m.p[2, :] + sf*y[ib.nodal_dofs[2, :]]]), m.t).save('eig.vtk')
+                      m.p[2, :] + sf*y[ib.nodal_dofs[2, :]]]), m.t).draw()
+    m.show()

@@ -13,13 +13,16 @@ from numpy import ndarray
 
 class MeshQuad(Mesh2D):
     """A mesh consisting of quadrilateral elements.
+
+    The different constructors are
+
+        - :meth:`~skfem.mesh.MeshQuad.__init__`
+        - :meth:`~skfem.mesh.MeshQuad.load` (requires meshio)
+        - :meth:`~skfem.mesh.MeshQuad.init_refdom`
+        - :meth:`~skfem.mesh.MeshQuad.init_tensor`
     
     Attributes
     ----------
-    p
-        An array containing the vertices of the mesh (2 x Nvertices).
-    t
-        An array containing the element connectivity (4 x Nelemens).
     facets
         Each column contains a pair of indices to p (2 x Nfacets).
     f2t
@@ -40,15 +43,16 @@ class MeshQuad(Mesh2D):
 
     """
 
-    refdom = "quad"
-    brefdom = "line"
-    meshio_type = "quad"
+    refdom: str = "quad"
+    brefdom: str = "line"
+    meshio_type: str = "quad"
+    name: str = "Quadrilateral"
 
-    p = np.array([])
-    t = np.array([])
-    facets = np.array([])
-    f2t = np.array([])
-    t2f = np.array([])
+    p: ndarray = np.array([])
+    t: ndarray = np.array([])
+    facets: ndarray = np.array([])
+    f2t: ndarray = np.array([])
+    t2f: ndarray = np.array([])
 
     def __init__(self,
                  p: Optional[ndarray] = None,
@@ -95,14 +99,14 @@ class MeshQuad(Mesh2D):
         npy = len(y)
         X, Y = np.meshgrid(np.sort(x), np.sort(y))   
         p = np.vstack((X.flatten('F'), Y.flatten('F')))
-        ix = np.arange(npx*npy)
-        ne = (npx-1)*(npy-1)
-        t = np.zeros((4, ne))
+        ix = np.arange(npx * npy)
+        nt = (npx - 1) * (npy - 1)
+        t = np.zeros((4, nt))
         ix = ix.reshape(npy, npx, order='F').copy()
-        t[0, :] = ix[0:(npy-1), 0:(npx-1)].reshape(ne, 1, order='F').copy().flatten()
-        t[1, :] = ix[1:npy, 0:(npx-1)].reshape(ne, 1, order='F').copy().flatten()
-        t[2, :] = ix[1:npy, 1:npx].reshape(ne, 1, order='F').copy().flatten()
-        t[3, :] = ix[0:(npy-1), 1:npx].reshape(ne, 1, order='F').copy().flatten()
+        t[0, :] = ix[0:(npy-1), 0:(npx-1)].reshape(nt, 1, order='F').copy().flatten()
+        t[1, :] = ix[1:npy,     0:(npx-1)].reshape(nt, 1, order='F').copy().flatten()
+        t[2, :] = ix[1:npy,     1:npx].reshape(nt, 1, order='F').copy().flatten()
+        t[3, :] = ix[0:(npy-1), 1:npx].reshape(nt, 1, order='F').copy().flatten()
         return cls(p, t.astype(np.int64))
 
     @classmethod
@@ -131,16 +135,12 @@ class MeshQuad(Mesh2D):
         # self.t=np.sort(self.t,axis=0)
 
         # define facets: in the order (0,1) (1,2) (2,3) (0,3)
-        self.facets = np.sort(np.vstack((self.t[0, :], self.t[1, :])), axis=0)
-        self.facets = np.hstack((self.facets,
-                                 np.sort(np.vstack((self.t[1, :],
-                                                    self.t[2, :])), axis=0)))
-        self.facets = np.hstack((self.facets,
-                                 np.sort(np.vstack((self.t[2, :],
-                                                    self.t[3, :])), axis=0)))
-        self.facets = np.hstack((self.facets,
-                                 np.sort(np.vstack((self.t[0, :],
-                                                    self.t[3, :])), axis=0)))
+        self.facets = np.sort(np.hstack((
+            self.t[[0, 1], :],
+            self.t[[1, 2], :],
+            self.t[[2, 3], :],
+            self.t[[0, 3], :],
+            )), axis=0)
 
         # get unique facets and build quad-to-facet mapping: 4 (edges) x Nquads
         tmp = np.ascontiguousarray(self.facets.T)
@@ -172,46 +172,56 @@ class MeshQuad(Mesh2D):
         """Perform a single mesh refine that halves 'h'. Each
         quadrilateral is split into four."""
         # rename variables
-        t = self.t
-        p = self.p
+        t = np.copy(self.t)
+        p = np.copy(self.p)
         e = self.facets
         sz = p.shape[1]
         t2f = self.t2f + sz
+        
         # quadrilateral middle point
         mid = range(self.t.shape[1]) + np.max(t2f) + 1
+        
         # new vertices are the midpoints of edges ...
         newp1 = 0.5*np.vstack((p[0, e[0, :]] + p[0, e[1, :]],
                                p[1, e[0, :]] + p[1, e[1, :]]))
+        
         # ... and element middle points
         newp2 = 0.25*np.vstack((p[0, t[0, :]] + p[0, t[1, :]] +
                                 p[0, t[2, :]] + p[0, t[3, :]],
                                 p[1, t[0, :]] + p[1, t[1, :]] +
                                 p[1, t[2, :]] + p[1, t[3, :]]))
-        newp = np.hstack((p, newp1, newp2))
+        self.p = np.hstack((p, newp1, newp2))
+        
         # build new quadrilateral definitions
-        newt = np.vstack((t[0, :],
-                          t2f[0, :],
-                          mid,
-                          t2f[3, :]))
-        newt = np.hstack((newt, np.vstack((t2f[0, :],
-                                           t[1, :],
-                                           t2f[1, :],
-                                           mid))))
-        newt = np.hstack((newt, np.vstack((mid,
-                                           t2f[1, :],
-                                           t[2, :],
-                                           t2f[2, :]))))
-        newt = np.hstack((newt, np.vstack((t2f[3, :],
-                                           mid,
-                                           t2f[2, :],
-                                           t[3, :]))))
-        # update fields
-        self.p = newp
-        self.t = newt
+        self.t = np.hstack((
+            np.vstack((t[0, :], t2f[0, :], mid, t2f[3, :])),
+            np.vstack((t2f[0, :], t[1, :], t2f[1, :], mid)),
+            np.vstack((mid, t2f[1, :], t[2, :], t2f[2, :])),
+            np.vstack((t2f[3, :], mid, t2f[2, :], t[3, :])),
+            ))
+        
+        # build mapping between old and new facets
+        new_facets = np.zeros((2, e.shape[1]), dtype=np.int64)
+        ix0 = np.arange(t.shape[1], dtype=np.int64)
+        ix1 = ix0 + t.shape[1]
+        ix2 = ix0 + 2*t.shape[1]
+        ix3 = ix0 + 3*t.shape[1]
 
         self._build_mappings()
 
-        # TODO implement prolongation
+        new_facets[0, t2f[0, :] - sz] = self.t2f[0, ix0]
+        new_facets[1, t2f[0, :] - sz] = self.t2f[0, ix1]
+
+        new_facets[0, t2f[1, :] - sz] = self.t2f[1, ix1]
+        new_facets[1, t2f[1, :] - sz] = self.t2f[1, ix2]
+
+        new_facets[0, t2f[2, :] - sz] = self.t2f[2, ix2]
+        new_facets[1, t2f[2, :] - sz] = self.t2f[2, ix3]
+
+        new_facets[0, t2f[3, :] - sz] = self.t2f[3, ix3]
+        new_facets[1, t2f[3, :] - sz] = self.t2f[3, ix0]
+
+        self._fix_boundaries(new_facets)
 
     def _splitquads(self, x=None):
         """Split each quad into two triangles and return MeshTri."""

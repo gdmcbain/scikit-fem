@@ -13,13 +13,14 @@ from .mesh3d import Mesh3D
 class MeshHex(Mesh3D):
     """A mesh consisting of hexahedral elements.
 
+    The different constructors are:
+
+    - :meth:`~skfem.mesh.MeshHex.__init__`
+    - :meth:`~skfem.mesh.MeshHex.load` (requires meshio)
+    - :meth:`~skfem.mesh.MeshHex.init_tensor`
+
     Attributes
     ----------
-    p : numpy array of size 3 x Nvertices
-        The vertices of the mesh. Each column corresponds to a point.
-    t : numpy array of size 8 x Nelements
-        The element connectivity. Each column corresponds to a element
-        and contains eight column indices to MeshHex.p.
     facets : numpy array of size 4 x Nfacets
         Each column contains four column indices to MeshHex.p.
     f2t : numpy array of size 2 x Nfacets
@@ -36,9 +37,10 @@ class MeshHex(Mesh3D):
 
     """
 
-    refdom = "hex"
-    brefdom = "quad"
-    meshio_type = "hexahedron"
+    refdom: str = "hex"
+    brefdom: str = "quad"
+    meshio_type: str = "hexahedron"
+    name: str = "Hexahedral"
 
     def __init__(self, p=None, t=None, validate=True):
         """Initialise a hexahedral mesh."""
@@ -283,21 +285,19 @@ class MeshHex(Mesh3D):
 
         self._build_mappings()
 
-        # TODO implement prolongation
-
     def save(self,
             filename: str,
-            pointData: Optional[Union[ndarray, Dict[str, ndarray]]] = None,
-            cellData: Optional[Union[ndarray, Dict[str, ndarray]]] = None):
+            point_data: Optional[Union[ndarray, Dict[str, ndarray]]] = None,
+            cell_data: Optional[Union[ndarray, Dict[str, ndarray]]] = None):
         """Export the mesh and fields using meshio. (Hexahedron version.)
 
         Parameters
         ----------
         filename
             The filename for vtk-file.
-        pointData
+        point_data
             ndarray for one output or dict for multiple
-        cellData
+        cell_data
             ndarray for one output or dict for multiple
 
         """
@@ -306,16 +306,16 @@ class MeshHex(Mesh3D):
         # vtk requires a different ordering
         t = self.t[[0, 3, 6, 2, 1, 5, 7, 4], :]
 
-        if pointData is not None:
-            if type(pointData) != dict:
-                pointData = {'0':pointData}
+        if point_data is not None:
+            if type(point_data) != dict:
+                point_data = {'0':point_data}
 
-        if cellData is not None:
-            if type(cellData) != dict:
-                cellData = {'0':cellData}
+        if cell_data is not None:
+            if type(cell_data) != dict:
+                cell_data = {'0':cell_data}
 
         cells = { 'hexahedron' : t.T }
-        mesh = meshio.Mesh(self.p.T, cells, pointData, cellData)
+        mesh = meshio.Mesh(self.p.T, cells, point_data, cell_data)
         meshio.write(filename, mesh)
 
     def mapping(self):

@@ -2,20 +2,18 @@ from skfem import *
 
 import numpy as np
 
-import meshio
 from pygmsh import generate_mesh
 from pygmsh.built_in import Geometry
 
 geom = Geometry()
 circle = geom.add_circle([0.] * 3, 1., .5**3)
-geom.add_physical_line(circle.line_loop.lines, 'perimeter')
-geom.add_physical_surface(circle.plane_surface, 'disk')
-mesh = MeshTri.from_meshio(meshio.Mesh(*generate_mesh(geom)))
+geom.add_physical(circle.line_loop.lines, 'perimeter')
+geom.add_physical(circle.plane_surface, 'disk')
+mesh = MeshTri.from_meshio(generate_mesh(geom, dim=2))
 
 element = ElementTriMorley()
 mapping = MappingAffine(mesh)
 ib = InteriorBasis(mesh, element, mapping, 2)
-
 
 @bilinear_form
 def biharmonic(u, du, ddu, v, dv, ddv, w):
@@ -48,23 +46,24 @@ D = np.concatenate((dofs.nodal['u'], dofs.facet['u_n']))
 psi = np.zeros_like(rotf)
 psi[ib.complement_dofs(D)] = solve(*condense(stokes, rotf, D=D))
 
-if __name__ == "__main__":
 
+from matplotlib.tri import Triangulation
+
+# Evaluate the stream-function at the origin.
+psi0, = ib.interpolator(psi)(np.zeros((2, 1)))
+print('psi0 = {} (cf. exact = 1/64 = {})'.format(psi0, 1/64))
+    
+if __name__ == "__main__":
+    
     from os.path import splitext
     from sys import argv
 
-    from matplotlib.tri import Triangulation
-
-    # Evaluate the stream-function at the origin.
-    psi0, = ib.interpolator(psi)(np.zeros((2, 1)))
-    print('psi0 = {} (cf. exact = 1/64 = {})'.format(psi0, 1/64))
-    
     M, Psi = ib.refinterp(psi, 3)
 
     ax = mesh.draw()
     ax.tricontour(Triangulation(M.p[0, :], M.p[1, :], M.t.T), Psi)
-    ax.axis('off')
-    ax.get_figure().savefig(splitext(argv[0])[0] + '_stream-lines.png')
+    name = splitext(argv[0])[0]
+    ax.get_figure().savefig(f'{name}_stream-lines.png')
 
     refbasis = InteriorBasis(M, ElementTriP1())
     velocity = np.vstack([derivative(Psi, refbasis, refbasis, 1),
@@ -75,5 +74,4 @@ if __name__ == "__main__":
     x = M.p[:, ::sparsity_factor]
     u = vector_factor * velocity[:, ::sparsity_factor]
     ax.quiver(x[0], x[1], u[0], u[1], x[0])
-    ax.axis('off')
-    ax.get_figure().savefig(splitext(argv[0])[0] + '_velocity-vectors.png')
+    ax.get_figure().savefig(f'{name}_velocity-vectors.png')

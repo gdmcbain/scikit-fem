@@ -1,7 +1,7 @@
 """Mappings define relationships between reference and global elements.
 
 :class:`~skfem.mesh.Mesh` provides default mappings for each mesh type,
-so normally the user is not required to access these classes.
+so normally the user is not required to initialize these classes.
 
 """
 
@@ -139,7 +139,7 @@ class MappingIsoparametric(Mapping):
                     out += p[i, t[itr, :]][:, None]*phi
                 return out
             else:
-                out = np.zeros((len(tind), X.shape[2]))
+                out = np.zeros((len(tind), X.shape[-1]))
                 for itr in range(t.shape[0]):
                     phi, _ = elem.lbasis(X, itr)
                     out += p[i, t[itr, tind]][:, None]*phi
@@ -153,7 +153,7 @@ class MappingIsoparametric(Mapping):
                     out += p[i, t[itr, :]][:, None]*dphi[j]
                 return out
             else:
-                out = np.zeros((len(tind), X.shape[2]))
+                out = np.zeros((len(tind), X.shape[-1]))
                 for itr in range(t.shape[0]):
                     _, dphi = elem.lbasis(X, itr)
                     out += p[i, t[itr, tind]][:, None]*dphi[j]

@@ -1,11 +1,12 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import warnings
-
 from typing import Dict, Optional, Tuple,\
                    Type, TypeVar, Union,\
-                   Callable
+                   Callable, Any
+
+import numpy as np
 from numpy import ndarray
+import matplotlib.pyplot as plt
+
 
 MeshType = TypeVar('MeshType', bound='Mesh')
 DimTuple = Union[Tuple[float], Tuple[float, float], Tuple[float, float, float]]
@@ -13,7 +14,7 @@ DimTuple = Union[Tuple[float], Tuple[float, float], Tuple[float, float, float]]
 
 class Mesh():
     """A finite element mesh.
-    
+
     This is an abstract superclass. See the following implementations:
 
     - :class:`~skfem.mesh.MeshTri`, triangular mesh
@@ -22,42 +23,78 @@ class Mesh():
     - :class:`~skfem.mesh.MeshHex`, hexahedral mesh
     - :class:`~skfem.mesh.MeshLine`, one-dimensional mesh
 
+    Attributes
+    ----------
+    p
+        The vertices of the mesh (dim x Nvertices). Each column corresponds to a
+        point.
+    t
+        The element connectivity (dim x Nelements). Each column corresponds to a
+        element and contains four column indices to p.
+    refdom
+        A string describing the shape of the reference domain. Used to find
+        quadrature rules.
+    brefdom
+        A string describing the shape of the reference domain for element
+        boundaries. Used for finding quadrature rules.
+    meshio_type
+        A string which is used to convert between scikit-fem and meshio mesh
+        types.
+    name
+        A string which is used in pretty printing the object.
+    subdomains
+        Named subsets of elements.
+    boundaries
+        Named subsets of boundary facets.
+    external
+        If Mesh is loaded from external format (object), the original
+        representation is kept here.
+
     """
 
-    refdom: str = "none"  
-    brefdom: str = "none" 
+    refdom: str = "none"
+    brefdom: str = "none"
     meshio_type: str = "none"
+    name: str = "Abstract"
 
-    p: ndarray = np.array([]) 
-    t: ndarray = np.array([]) 
+    p: ndarray = np.array([])
+    t: ndarray = np.array([])
+
+    subdomains: Dict[str, ndarray] = {}
+    boundaries: Dict[str, ndarray] = {}
+    external: Any = None
 
     def __init__(self):
         """Check that p and t are C_CONTIGUOUS as this leads
         to better performance."""
         if self.p is not None:
             if self.p.flags['F_CONTIGUOUS']:
-                if self.p.shape[1]>1000:
+                if self.p.shape[1] > 1000:
                     warnings.warn("Mesh.__init__(): Transforming " +
-                            "over 100 vertices to C_CONTIGUOUS.")
+                                  "over 100 vertices to C_CONTIGUOUS.")
                 self.p = np.ascontiguousarray(self.p)
         if self.t is not None:
             if self.t.flags['F_CONTIGUOUS']:
-                if self.t.shape[1]>1000:
+                if self.t.shape[1] > 1000:
                     warnings.warn("Mesh.__init__(): Transforming " +
-                            "over 100 elements to C_CONTIGUOUS.")
+                                  "over 100 elements to C_CONTIGUOUS.")
                 self.t = np.ascontiguousarray(self.t)
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
-        return "Mesh of type '" + str(type(self)) + "' "\
-               "with " + str(self.p.shape) + " vertices " \
-               "and " + str(self.t.shape) + " elements."
+        return self.name + " mesh "\
+               "with " + str(self.p.shape[1]) + " vertices "\
+               "and " + str(self.t.shape[1]) + " elements."
 
     def show(self):
         """A wrapper for matplotlib.pyplot.show()."""
         plt.show()
+
+    def savefig(self, *args, **kwargs):
+        """A wrapper for matplotlib.pyplot.savefig()."""
+        plt.savefig(*args, **kwargs)
 
     def dim(self):
         """Return the spatial dimension of the mesh."""
@@ -72,20 +109,47 @@ class Mesh():
         raise NotImplementedError("Single refine not implemented " +
                                   "for this mesh type!")
 
-    def refine(self, no_refs: Optional[int] = None):
+    def _adaptive_refine(self, marked):
+        """Perform adaptive refinement."""
+        raise NotImplementedError("Adaptive refine not implemented " +
+                                  "for this mesh type!")
+
+    def refine(self, arg: Optional[Union[int, ndarray]] = None):
         """Refine the mesh.
-        
+
         Parameters
         ----------
-        no_refs
-            Perform multiple refinements.
+        arg
+            Multiple variations:
+            - If None, refine all elements.
+            - If integer, perform multiple uniform refinements.
+            - If array of element indices, adaptively refine.
 
         """
-        if no_refs is None:
-            return self._uniform_refine()
-        else:
-            for itr in range(no_refs):
+        if arg is None:
+            self._uniform_refine()
+        elif isinstance(arg, int):
+            for itr in range(arg):
                 self._uniform_refine()
+        elif isinstance(arg, list):
+            self._adaptive_refine(np.array(arg))
+        elif isinstance(arg, ndarray):
+            self._adaptive_refine(arg)
+        else:
+            raise NotImplementedError("The given parameter type not supported.")
+
+    def _fix_boundaries(self, new_f: ndarray):
+        """This is called after each refine to update the indices in self.boundaries.
+
+        Parameters
+        ----------
+        new_f
+            An array of integers of size no-splitted-elems x no-facets.
+
+        """
+        if hasattr(self, "boundaries"):
+            for name in self.boundaries:
+                self.boundaries[name] = new_f[:, self.boundaries[name]].flatten()
 
     def remove_elements(self, element_indices: ndarray) -> MeshType:
         """Construct new mesh with elements removed
@@ -109,7 +173,7 @@ class Mesh():
         reverse[ptix] = np.arange(len(ptix))
         newt = reverse[newt]
         newp = self.p[:, ptix]
-        if newp.shape[1]==0.0:
+        if newp.shape[1] == 0.0:
             raise Exception("The new mesh contains no points!")
         meshclass = type(self)
         return meshclass(newp, newt.astype(np.intp))
@@ -172,106 +236,108 @@ class Mesh():
             msg = "Mesh._validate(): Mesh contains duplicate vertices."
             warnings.warn(msg)
         # check that all points are at least in some element
-        if len(np.setdiff1d(np.arange(self.p.shape[1]), np.unique(self.t))):
+        if len(np.setdiff1d(np.arange(self.p.shape[1]), np.unique(self.t))) > 0:
             msg = ("Mesh._validate(): Mesh contains a vertex "
                    "not belonging to any element.")
             raise Exception(msg)
 
     def save(self,
              filename: str,
-             pointData: Optional[Union[ndarray, Dict[str, ndarray]]] = None,
-             cellData: Optional[Union[ndarray, Dict[str, ndarray]]] = None) -> None:
+             point_data: Optional[Union[ndarray, Dict[str, ndarray]]] = None,
+             cell_data: Optional[Union[ndarray, Dict[str, ndarray]]] = None) -> None:
         """Export the mesh and fields using meshio.
 
         Parameters
         ----------
         filename
-            The filename for vtk-file.
-        pointData
+            The output filename, with suffix determining format;
+            e.g. .msh, .vtk, .xdmf
+        point_data
             Data related to the vertices of the mesh. Numpy array for one
-            output or dict for multiple.
-        cellData
+            output, or dict for multiple.
+        cell_data
             Data related to the elements of the mesh. Numpy array for one
-            output or dict for multiple
+            output, or dict for multiple
 
         """
         import meshio
 
-        if pointData is not None:
-            if type(pointData) != dict:
-                pointData = {'0':pointData}
+        if point_data is not None:
+            if not isinstance(point_data, dict):
+                point_data = {'0' : point_data}
 
-        if cellData is not None:
-            if type(cellData) != dict:
-                cellData = {'0':cellData}
+        if cell_data is not None:
+            if not isinstance(point_data, dict):
+                cell_data = {'0' : cell_data}
 
-        cells = { self.meshio_type : self.t.T }
-        mesh = meshio.Mesh(self.p.T, cells, pointData, cellData)
+        cells = {self.meshio_type : self.t.T}
+        mesh = meshio.Mesh(self.p.T, cells, point_data, cell_data)
         meshio.write(filename, mesh)
 
     def _parse_submeshes(self) -> None:
         """Parse submeshes from self.external.
 
-        Call after creating a mesh using Mesh.from_meshio to parse Mesh.external into
-        Mesh.boundaries and Mesh.subdomains. Supports currently gmsh only.
+        Call after creating a mesh using Mesh.from_meshio to parse Mesh.external
+        into Mesh.boundaries and Mesh.subdomains. Supports currently gmsh only.
 
         """
 
         # element to boundary element type mapping
         bnd_type = {
-            'triangle':'line',
-            'quad':'line',
-            'tetra':'triangle',
-            'hexahedron':'quad',
+            'line': 'vertex',
+            'triangle' : 'line',
+            'quad' : 'line',
+            'tetra' : 'triangle',
+            'hexahedron' : 'quad',
         }[self.meshio_type]
 
-        def find_tagname(t):
+        def find_tagname(tag):
             for key in self.external.field_data:
-                if self.external.field_data[key][0] == t:
-                    return key 
+                if self.external.field_data[key][0] == tag:
+                    return key
+            return None
 
         # fill self.subdomains
-        if self.meshio_type in self.external.cell_data and \
+        if self.meshio_type in self.external.cell_data and\
            'gmsh:physical' in self.external.cell_data[self.meshio_type]:
-            elements = self.external.cells[self.meshio_type]
             elements_tag = self.external.cell_data[self.meshio_type]['gmsh:physical']
-            
+
             self.subdomains = {}
             tags = np.unique(elements_tag)
-            
+
             for tag in tags:
                 t_set = np.nonzero(tag == elements_tag)[0]
                 self.subdomains[find_tagname(tag)] = t_set
 
         # fill self.boundaries
-        if bnd_type in self.external.cell_data and \
+        if bnd_type in self.external.cell_data and\
            'gmsh:physical' in self.external.cell_data[bnd_type]:
             facets = self.external.cells[bnd_type]
             facets_tag = self.external.cell_data[bnd_type]['gmsh:physical']
             bndfacets = self.boundary_facets()
-            
+
             # put meshio facets to dict
-            dic = {tuple(np.sort(facets[i])): facets_tag[i] for i in range(facets.shape[0])}
-            
+            dic = {tuple(np.sort(facets[i])) : facets_tag[i]
+                   for i in range(facets.shape[0])}
+
             # get index of corresponding Mesh.facets for each meshio
             # facet found in the dict
-            ix = np.array([[dic[tuple(np.sort(self.facets[:, i]))], i]
-                             for i in bndfacets
-                             if tuple(np.sort(self.facets[:, i])) in dic])
-            
+            index = np.array([[dic[tuple(np.sort(self.facets[:, i]))], i]
+                              for i in bndfacets
+                              if tuple(np.sort(self.facets[:, i])) in dic])
+
             # read meshio tag numbers and names
-            tags = ix[:, 0]
+            tags = index[:, 0]
             self.boundaries = {}
-                    
             for tag in np.unique(tags):
-                tagix = np.nonzero(tags == tag)[0]
-                self.boundaries[find_tagname(tag)] = ix[tagix, 1]
-                
+                tagindex = np.nonzero(tags == tag)[0]
+                self.boundaries[find_tagname(tag)] = index[tagindex, 1]
+
     @classmethod
     def from_meshio(cls: Type[MeshType], meshdata) -> MeshType:
         """Translate a mesh from `meshio
         <https://github.com/nschloe/meshio>`_.
-        
+
         Parameters
         ----------
         meshdata
@@ -286,11 +352,11 @@ class Mesh():
         """
 
         if cls.meshio_type in meshdata.cells:
-            p = cls.strip_extra_coordinates(meshdata.points).T
-            t = meshdata.cells[cls.meshio_type].T
+            p = np.ascontiguousarray(cls.strip_extra_coordinates(meshdata.points).T)
+            t = np.ascontiguousarray(meshdata.cells[cls.meshio_type].T)
             mesh = cls(p, t)
             mesh.external = meshdata
-            
+
             # load submeshes, currently gmsh only
             try:
                 mesh._parse_submeshes()
@@ -301,21 +367,36 @@ class Mesh():
                 print(e)
 
             return mesh
-        else:
-            raise Exception("The mesh contains no elements of type " + cls.meshio_type)
+
+        raise Exception("The mesh contains no elements of type " + cls.meshio_type)
 
     @classmethod
-    def load(cls: Type[MeshType], filename: str) -> MeshType:
-        """Load an external mesh from file using `meshio
+    def load(cls: Type[MeshType],
+             filename: str,
+             from_url: Optional[bool] = False) -> MeshType:
+        """Load an external mesh from file or url using `meshio
         <https://github.com/nschloe/meshio>`_.
-        
+
         Parameters
         ----------
         filename
             The filename of the mesh.
+        from_url
+            If true, load the file over HTTP.
 
         """
         import meshio
+
+        if from_url:
+            import tempfile
+            from urllib.request import urlopen
+
+            tmp = tempfile.NamedTemporaryFile(suffix='.' + filename.split('.')[-1],
+                                              delete=False)
+            tmp.write(urlopen(filename).read())
+            tmp.flush()
+            filename = tmp.name
+
         return cls.from_meshio(meshio.read(filename))
 
     def boundary_nodes(self) -> ndarray:
@@ -339,3 +420,7 @@ class Mesh():
         indices corresponding to the input points."""
         raise NotImplementedError("element_finder not implemented" +\
                                   "for the given Mesh type.")
+
+    @staticmethod
+    def strip_extra_coordinates(p: ndarray) -> ndarray:
+        return p

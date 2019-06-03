@@ -1,26 +1,7 @@
-"""
-
-Steady conduction with generation in an insulated wire
-
-Carslaw, H. S., & J. C. Jaeger (1959). _Conduction of Heat in Solids_ 
-(2nd ed.). Oxford University Press. §7.2.V, pp 191–192
-
-∇ ⋅ (k0 ∇ T) + A = 0 in 0 < r < a
-
-and 
-
-∇ ⋅ (k1 ∇ T) = 0 in a < r < b
-
-with k1 ∂T/∂r + h T = 0 on r = b.
-
-"""
-
-from functools import partial
 from typing import Optional
 
 import numpy as np
 
-import meshio
 from pygmsh import generate_mesh
 from pygmsh.built_in import Geometry
 
@@ -36,49 +17,51 @@ thermal_conductivity = {'wire': 101.,  'insulation': 11.}
 def make_mesh(a: float,         # radius of wire
               b: float,         # radius of insulation
               dx: Optional[float] = None) -> MeshTri:
-    
+
     dx = a / 2 ** 3 if dx is None else dx
 
     origin = np.zeros(3)
     geom = Geometry()
     wire = geom.add_circle(origin, a, dx, make_surface=True)
-    geom.add_physical_surface(wire.plane_surface, 'wire')
+    geom.add_physical(wire.plane_surface, 'wire')
     insulation = geom.add_circle(origin, b, dx, holes=[wire.line_loop])
-    geom.add_physical_surface(insulation.plane_surface, 'insulation')
-    geom.add_physical_line(insulation.line_loop.lines, 'convection')
+    geom.add_physical(insulation.plane_surface, 'insulation')
+    geom.add_physical(insulation.line_loop.lines, 'convection')
 
-    return MeshTri.from_meshio(meshio.Mesh(*generate_mesh(geom)))
+    return MeshTri.from_meshio(generate_mesh(geom, dim=2))
+
 
 mesh = make_mesh(*radii)
-regions = mesh.external.cell_data['triangle']['gmsh:physical']
-region_ids = {i: name for name, (i, d) in
-              mesh.external.field_data.items() if d == mesh.dim()}
+
 
 @bilinear_form
 def conduction(u, du, v, dv, w):
     return w.w * sum(du * dv)
+
 
 convection = mass
 
 element = ElementTriP1()
 basis = InteriorBasis(mesh, element)
 
-def elemental(x: np.ndarray) -> np.ndarray:
-    return np.tile(x, (len(basis.W), 1)).T
+conductivity = basis.zero_w()
+for subdomain, elements in mesh.subdomains.items():
+    conductivity[elements] = thermal_conductivity[subdomain]
 
-L = asm(conduction, basis,
-        w=elemental([thermal_conductivity[region_ids[i]] for i in regions]))
+L = asm(conduction, basis, w=conductivity)
 
 facet_basis = FacetBasis(mesh, element, facets=mesh.boundaries['convection'])
 H = heat_transfer_coefficient * asm(convection, facet_basis)
+
 
 @linear_form
 def generation(v, dv, w):
     return w.w * v
 
-f = joule_heating * asm(generation, basis,
-                        w=elemental(regions ==
-                                    mesh.external.field_data['wire'][0]))
+
+heated = basis.zero_w()
+heated[mesh.subdomains['wire']] = 1.
+f = joule_heating * asm(generation, basis, w=heated)
 
 temperature = solve(L + H, f)
 
@@ -86,7 +69,6 @@ if __name__ == '__main__':
 
     from os.path import splitext
     from sys import argv
-    
 
     T0 = {'skfem': basis.interpolator(temperature)(np.zeros((2, 1)))[0],
           'exact':
@@ -95,11 +77,8 @@ if __name__ == '__main__':
             / heat_transfer_coefficient
             + (2 * thermal_conductivity['wire']
                / thermal_conductivity['insulation']
-               * np.log(radii[1] /radii[0])) + 1))}
+               * np.log(radii[1] / radii[0])) + 1))}
     print('Central temperature:', T0)
-    
-    ax = mesh.plot(temperature)
-    ax.axis('off')
-    fig = ax.get_figure()
-    fig.colorbar(ax.get_children()[0])
-    fig.savefig(splitext(argv[0])[0] + '.png')
+
+    mesh.plot(temperature, colorbar=True)
+    mesh.savefig(splitext(argv[0])[0] + '_solution.png')

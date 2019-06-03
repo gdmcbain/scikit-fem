@@ -1,43 +1,32 @@
-"""
-Author: gdmcbain
-
-Another simple modification of examples/ex01.py, this time showing how to
-impose inhomogeneous Dirichlet conditions with condense. 
-The forcing term is suppressed for simplicity. The boundary values
-are set as the real part x**2 - y**2 of an analytic complex function z**2 which
-is harmonic and so that is the exact solution through the domain.
-
-This is checked quantitatively by computing the integral of the squared
-magnitude of the gradient, by evaluating the quadratic form associated with the
-laplacian at the solution; the exact value is 8/3.
-"""
-
 from skfem import *
+from skfem.models.poisson import laplace
+
+import numpy as np
 
 m = MeshTri()
 m.refine(4)
 
-e = ElementTriP1()
-map = MappingAffine(m)
-basis = InteriorBasis(m, e, map, 2)
-
-@bilinear_form
-def laplace(u, du, v, dv, w):
-    return du[0]*dv[0] + du[1]*dv[1]
-
-@linear_form
-def load(v, dv, w):
-    return 1.0*v
+e = ElementTriP2()
+basis = InteriorBasis(m, e)
 
 A = asm(laplace, basis)
-b = asm(load, basis)
 
-I = m.interior_nodes()
+D = basis.get_dofs().all()
+I = basis.complement_dofs(D)
 
-u = (([1., 1.j] @ m.p) ** 2).real          # x**2 - y**2
-u[I] = solve(*condense(A, 0.*b, u, I))
+
+def dirichlet(x, y):
+    """return a harmonic function"""
+    return ((x + 1.j * y) ** 2).real
+
+
+u = np.zeros(basis.N)
+u[D] = L2_projection(dirichlet,
+                     FacetBasis(m, e, facets=m.boundary_facets()), D)
+u[I] = solve(*condense(A, np.zeros_like(u), u, I))
+
 
 if __name__ == "__main__":
-    print('||grad u||**2 = {:.4f} (exact = 8/3 = {:.4f})'.format(u @ A @ u, 8/3))
-    m.plot(u)
+    print('||grad u||**2 = {:f} (exact = 8/3 = {:f})'.format(u @ A @ u, 8/3))
+    m.plot(u[basis.nodal_dofs.flatten()])
     m.show()

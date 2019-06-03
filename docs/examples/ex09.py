@@ -1,10 +1,3 @@
-"""
-Author: kinnala
-
-Solve Laplace equation with zero Dirichlet BC using linear tetrahedral elements
-and preconditioned conjugate gradient method.
-
-"""
 from skfem import *
 from skfem.models.poisson import *
 import numpy as np
@@ -28,11 +21,15 @@ if __name__ == "__main__":
 else:
     verbose = False
 # run conjugate gradient with the default preconditioner
-x[I] = solve(*condense(A, b, I=I), solver=solver_iter_pcg(verbose=verbose))
+Aint, bint = condense(A, b, I=I)
+x[I] = solve(Aint, bint, solver=solver_iter_pcg(verbose=verbose))
 
 # run conjugate gradient with the incomplete LU preconditioner
-Aint, bint = condense(A, b, I=I)
-x[I] = solve(Aint, bint, solver=solver_iter_pcg(pc=build_pc_ilu(Aint), verbose=verbose))
+x[I] = solve(Aint, bint,
+             solver=solver_iter_pcg(M=build_pc_ilu(Aint), verbose=verbose))
 
 if verbose:
-    m.save("ex09.vtk", x)
+    from os.path import splitext
+    from sys import argv
+
+    m.save(splitext(argv[0])[0] + ".vtk", x)
