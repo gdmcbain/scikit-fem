@@ -18,10 +18,9 @@ class InteriorBasis(GlobalBasis):
 
     Attributes
     ----------
-    phi : ndarray
-        Global basis functions at global quadrature points.
-    dphi : ndarray
-        Global basis function derivatives at global quadrature points.
+    basis : List[Tuple[ndarray, ndarray]]
+           global basis functions (Nelems, Nqp) and their gradients (Ndim,
+           Nelems, Nqp) at global quadrature points.
     X : ndarray
         Local quadrature points (Ndim x Nqp).
     W : ndarray
