@@ -19,8 +19,8 @@ class InteriorBasis(GlobalBasis):
     Attributes
     ----------
     basis : List[Tuple[ndarray, ndarray]]
-        global basis functions (Nelems, Nqp) and their gradients (Ndim,
-        Nelems, Nqp) at global quadrature points.
+        global basis functions (Nelems x Nqp) and their gradients (Ndim x
+        Nelems x Nqp) at global quadrature points.
     X : ndarray
         Local quadrature points (Ndim x Nqp).
     W : ndarray
