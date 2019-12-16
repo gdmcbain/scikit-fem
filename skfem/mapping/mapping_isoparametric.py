@@ -168,57 +168,13 @@ class MappingIsoparametric(Mapping):
         return detDF
 
     def invDF(self, X, tind=None):
-        detDF = self.detDF(X, tind)
 
-        if self.dim == 2:
-            invDF = np.empty((2, 2) + self.J(0, 0, X, tind=tind).shape)
-            invDF[0, 0] =  self.J(1, 1, X, tind=tind) / detDF
-            invDF[0, 1] = -self.J(0, 1, X, tind=tind) / detDF
-            invDF[1, 0] = -self.J(1, 0, X, tind=tind) / detDF
-            invDF[1, 1] =  self.J(0, 0, X, tind=tind) / detDF
-        elif self.dim == 3:
-            invDF = np.empty((3, 3) + self.J(0, 0, X, tind=tind).shape)
-            invDF[0, 0] = (-self.J(1, 2, X, tind=tind) * \
-                           self.J(2, 1, X, tind=tind) +
-                           self.J(1, 1, X, tind=tind) * \
-                           self.J(2, 2, X, tind=tind)) / detDF
-            invDF[1, 0] = (self.J(1, 2, X, tind=tind) * \
-                           self.J(2, 0, X, tind=tind) -
-                           self.J(1, 0, X, tind=tind) * \
-                           self.J(2, 2, X, tind=tind)) / detDF
-            invDF[2, 0] = (-self.J(1, 1, X, tind=tind) * \
-                           self.J(2, 0, X, tind=tind) +
-                           self.J(1, 0, X, tind=tind) * \
-                           self.J(2, 1, X, tind=tind)) / detDF
-            invDF[0, 1] = (self.J(0, 2, X, tind=tind) * \
-                           self.J(2, 1, X, tind=tind) +
-                           -self.J(0, 1, X, tind=tind) * \
-                           self.J(2, 2, X, tind=tind)) / detDF
-            invDF[1, 1] = (-self.J(0, 2, X, tind=tind) * \
-                           self.J(2, 0, X, tind=tind) +
-                           self.J(0, 0, X, tind=tind) * \
-                           self.J(2, 2, X, tind=tind)) / detDF
-            invDF[2, 1] = (self.J(0, 1, X, tind=tind) * \
-                           self.J(2, 0, X, tind=tind) -
-                           self.J(0, 0, X, tind=tind) * \
-                           self.J(2, 1, X, tind=tind)) / detDF
-            invDF[0, 2] = (-self.J(0, 2, X, tind=tind) * \
-                           self.J(1, 1, X, tind=tind) +
-                           self.J(0, 1, X, tind=tind) * \
-                           self.J(1, 2, X, tind=tind)) / detDF
-            invDF[1, 2] = (self.J(0, 2, X, tind=tind) * \
-                           self.J(1, 0, X, tind=tind) -
-                           self.J(0, 0, X, tind=tind) * \
-                           self.J(1, 2, X, tind=tind)) / detDF
-            invDF[2, 2] = (-self.J(0, 1, X, tind=tind) * \
-                           self.J(1, 0, X, tind=tind) +
-                           self.J(0, 0, X, tind=tind) * \
-                           self.J(1, 1, X, tind=tind)) / detDF
-        else:
-            raise Exception("Not implemented for the given dimension.")
+        jac = np.array([[self.J(i, j, X, tind=tind)
+                         for i in range(self.dim)]
+                        for j in range(self.dim)])
+        return np.linalg.inv(
+            jac.transpose(2, 3, 0, 1)).transpose(2, 3, 0, 1)
 
-        return invDF
-    
     def normals(self, X, tind, find, t2f):
         if self.dim == 1:
             Nref = np.array([[-1.0],
