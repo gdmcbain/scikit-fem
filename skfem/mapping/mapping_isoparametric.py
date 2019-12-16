@@ -173,7 +173,7 @@ class MappingIsoparametric(Mapping):
                          for i in range(self.dim)]
                         for j in range(self.dim)])
         return np.linalg.inv(
-            jac.transpose(2, 3, 0, 1)).transpose(2, 3, 0, 1)
+            jac.transpose(2, 3, 0, 1)).transpose(3, 2, 0, 1)
 
     def normals(self, X, tind, find, t2f):
         if self.dim == 1:
