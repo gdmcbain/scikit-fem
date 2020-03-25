@@ -1,10 +1,25 @@
 from math import ceil
-from typing import Iterator, Tuple
+from typing import Iterator, Callable, Tuple
 
 import numpy as np
 from scipy.sparse import csr_matrix
 
-from sksparse.cholmod import cholesky
+try:
+    from sksparse.cholmod import cholesky as factor
+except ImportError:
+    from scipy.sparse import csc_matrix
+    from scipy.sparse.linalg import splu
+
+    def factor(A: csc_matrix) -> Callable[[np.ndarray], np.ndarray]:
+        """return a backsolving function from a sparse LU factorization
+
+        having the same call-signature as sksparse.cholmod.cholesky
+
+        """
+
+        lu = splu(A)
+        return lu.solve
+
 
 from skfem import *
 from skfem.models.poisson import laplace, mass
@@ -34,8 +49,8 @@ B = M - (1 - theta) * L * dt
 boundary = basis.get_dofs().all()
 interior = basis.complement_dofs(boundary)
 
-backsolve = cholesky(condense(A, D=boundary, expand=False)
-                     .T)  # cholesky prefers CSC
+backsolve = factor(condense(A, D=boundary, expand=False)
+                   .T)  # cholesky prefers CSC
 
 u_init = (np.cos(np.pi * mesh.p[0, :] / 2 / halfwidth[0])
           * np.cos(np.pi * mesh.p[1, :] / 2 / halfwidth[1]))
