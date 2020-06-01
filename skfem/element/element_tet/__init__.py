@@ -12,4 +12,3 @@ __all__ = [
     "ElementTetRT0",
     "ElementTetN0",
     "ElementTetMini"]
-    

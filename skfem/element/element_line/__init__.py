@@ -8,5 +8,3 @@ __all__ = [
     "ElementLineP2",
     "ElementLinePp",
     "ElementLineHermite"]
-
-    
