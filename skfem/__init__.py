@@ -65,4 +65,5 @@ __all__ = [
     'ElementLineP2',
     'ElementLinePp',
     'ElementLineHermite',
+    '__version__',
 ]

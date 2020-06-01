@@ -6,3 +6,13 @@ from .element_tri_rt0 import ElementTriRT0
 from .element_tri_mini import ElementTriMini
 from .element_tri_morley import ElementTriMorley
 from .element_tri_argyris import ElementTriArgyris
+
+__all__ = [
+    "ElementTriP1",
+    "ElementTriP2",
+    "ElementTriDG",
+    "ElementTriP0",
+    "ElementTriRT0",
+    "ElementTriMini",
+    "ElementTriMorley",
+    "ElementTriArgyris"]

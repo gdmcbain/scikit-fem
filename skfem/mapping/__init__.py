@@ -9,3 +9,9 @@ from .mapping import Mapping
 from .mapping_affine import MappingAffine
 from .mapping_isoparametric import MappingIsoparametric
 from .mapping_mortar import MappingMortar
+
+__all__ = [
+    "Mapping",
+    "MappingAffine",
+    "MappingIsoparametric",
+    "MappingMortar"]
