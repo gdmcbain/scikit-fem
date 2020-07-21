@@ -6,6 +6,7 @@ from skfem import BilinearForm, InteriorBasis, LinearForm, asm, solve
 from skfem.element import (ElementTetP0, ElementTetRT0, ElementTriP0,
                            ElementTriRT0)
 from skfem.mesh import MeshTet, MeshTri
+from skfem.models.general import divergence
 
 
 class ConvergenceRaviartThomas(unittest.TestCase):
@@ -21,10 +22,6 @@ class ConvergenceRaviartThomas(unittest.TestCase):
         def bilinf_A(sigma, tau, w):
             from skfem.models.helpers import dot
             return dot(sigma, tau)
-
-        @BilinearForm
-        def bilinf_B(sigma, v, w):
-            return sigma.df * v
 
         @LinearForm
         def load(v, w):
@@ -51,7 +48,7 @@ class ConvergenceRaviartThomas(unittest.TestCase):
             ib1, ib2 = self.create_basis(m)
 
             A = asm(bilinf_A, ib1)
-            B = asm(bilinf_B, ib1, ib2)
+            B = asm(divergence, ib1, ib2)
             b = np.concatenate((
                 np.zeros(A.shape[0]),
                 -asm(load, ib2)
