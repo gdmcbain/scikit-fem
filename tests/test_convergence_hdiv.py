@@ -55,7 +55,7 @@ class ConvergenceRaviartThomas(unittest.TestCase):
             ))
 
             from scipy.sparse import bmat
-            K = bmat([[A, B.T], [B, None]]).tocsr()
+            K = bmat([[A, B.T], [B, None]], 'csr')
 
             x = solve(K, b)
 
