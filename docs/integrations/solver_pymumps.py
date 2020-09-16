@@ -3,7 +3,6 @@ from skfem.models.poisson import *
 from skfem.utils import LinearSolver
 import numpy as np
 from scipy.sparse import spmatrix
-from scipy.sparse.linalg import LinearOperator
 from mumps import DMumpsContext
 
 
