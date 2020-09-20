@@ -1,4 +1,4 @@
-![scikit-fem](https://github.com/kinnala/scikit-fem/blob/master/logo.png?raw=true)
+<img src="https://user-images.githubusercontent.com/973268/93522777-ac28dd00-f93a-11ea-8733-4ca8e62ab09d.png" width="45%">
 
 [![PyPI](https://img.shields.io/pypi/v/scikit-fem)](https://pypi.org/project/scikit-fem/)
 [![Build Status](https://travis-ci.com/kinnala/scikit-fem.svg?branch=master)](https://travis-ci.com/kinnala/scikit-fem)
@@ -51,7 +51,7 @@ of `scipy.sparse.linalg.spsolve`.*
 Forms are defined using an intuitive syntax:
 
 ```python
-from skfem import *
+from skfem import BilinearForm
 from skfem.helpers import dot, grad
 
 @BilinearForm
@@ -65,6 +65,7 @@ constructors:
 
 ```python
 import numpy as np
+from skfem import MeshLine, MeshTri, MeshTet
 
 mesh = MeshLine(np.array([0.0, 0.5, 1.0]))
 mesh = MeshTri.load("docs/examples/square.msh")
@@ -72,10 +73,12 @@ mesh = MeshTet.init_tensor(*((np.linspace(0, 1, 60),) * 3))
 ```
 
 We support [many common finite
-elements](https://github.com/kinnala/scikit-fem/tree/master/skfem/element).
+elements](https://github.com/kinnala/scikit-fem/blob/master/skfem/element/__init__.py#L51).
 Below the stiffness matrix is assembled using second-order tetrahedra:
 
 ```python
+from skfem import InteriorBasis, ElementTetP2
+
 basis = InteriorBasis(mesh, ElementTetP2())
 A = laplace.assemble(basis)  # type: scipy.sparse.csr_matrix
 ```
@@ -148,6 +151,8 @@ You may use the following BibTeX entry:
 The library has been used in the preparation of the following scientific works:
 
 - Gustafsson, T., Stenberg, R., & Videman, J. (2020). Nitsche's method for Kirchhoff plates. arXiv preprint [arXiv:2007.00403](https://arxiv.org/abs/2007.00403).
+
+- Gustafsson, T., & McBain, G. D. (2020). scikit-fem: A Python package for finite element assembly. Journal of Open Source Software, 52(5). [Open access](https://doi.org/10.21105/joss.02369).
 - Gustafsson, T., Stenberg, R., & Videman, J. (2020). On Nitsche's method for elastic contact problems. SIAM Journal on Scientific Computing, 42(2), B425–B446. arXiv preprint [arXiv:1902.09312](https://arxiv.org/abs/1902.09312).
 - Gustafsson, T., Stenberg, R., & Videman, J. (2019). Nitsche's Master-Slave Method for Elastic Contact Problems. [arXiv:1912.08279](https://arxiv.org/abs/1912.08279).
 - McBain, G. D., Mallinson, S. G., Brown, B. R., Gustafsson, T. (2019). Three ways to compute multiport inertance. The ANZIAM Journal, 60, C140–C155.  [Open access](https://doi.org/10.21914/anziamj.v60i0.14058).
@@ -159,8 +164,6 @@ The library has been used in the preparation of the following scientific works:
 - Gustafsson, T., Stenberg, R., & Videman, J. (2017). Nitsche’s Method for the Obstacle Problem of Clamped Kirchhoff Plates. In European Conference on Numerical Mathematics and Advanced Applications, 407–415. Springer.
 - Gustafsson, T., Stenberg, R., & Videman, J. (2017). A posteriori analysis of classical plate elements. Rakenteiden Mekaniikka, 50(3), 141–145. [Open access](https://rakenteidenmekaniikka.journal.fi/article/view/65004/26450).
 
-In case you want to cite the library, you can use the DOI provided by [Zenodo](https://zenodo.org/badge/latestdoi/115345426).
-
 ## Changelog
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -170,6 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 - `ElementHex2`, a triquadratic hexahedral element
+- `MeshTri.init_circle`, constructor for a circle mesh
 
 ### [2.0.0] - 2020-08-21
 
