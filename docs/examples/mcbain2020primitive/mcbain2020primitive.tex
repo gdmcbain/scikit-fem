@@ -1,0 +1,230 @@
+%
+%  22 AFMC sample paper in LaTeX.
+%  Adapted by Rowan Gollan and Anand Veeraragavan at The University of Queensland.
+%  Template adapted from work of Timothy Lau for the 21st AFMC.
+%
+%  This example can be processed with pdflatex. Remember to run it twice to
+%  generate internal cross-references correctly.
+%
+
+\documentclass[twocolum]{afmc_art}
+\usepackage{graphicx}
+\usepackage{bm}
+\usepackage{paralist}
+\usepackage{amsmath}            %align
+\usepackage{amssymb}            %mathbb
+\bibliographystyle{afmc}
+%
+%
+% --- Paper number is placed here.
+\renewcommand{\paperno}{xxYY}
+
+\begin{document}
+%
+%
+% --- Title goes here. Do not for a line-breack unless absolutely necessary
+\title{The Primitive Orr--Sommerfeld Equation and its Solution by Finite Elements}
+
+% --- Authors and affiliations with brief address
+\author{G. D. McBain}
+\affiliation{Modelling \& Simulation, Memjet North Ryde Pty Ltd\\
+  Macquarie Park, NSW 2113, Australia\\[5pt]
+}
+\maketitle
+
+% --- Paper proper starts here
+\section{Abstract}
+The linear stability of parallel shear flows of incompressible viscous fluids is classically described by the Orr--Sommerfeld equation in the disturbance streamfunction.  This fourth-order equation is obtained from the second-order linearized Navier--Stokes equation by eliminating the pressure.
+
+Here we consider retaining the primitive velocity--pressure formulation as is required for the linear stability analysis in general multidimensional geometries for which the streamfunction is unavailable; this conveniently reduces the conceptual and notational step from one to higher dimensions.
+
+%% Further, multidimensional flow simulation in arbitrary geometry is generally based on the primitive Navier--Stokes equations; having the same formulation and discretization in the linear stability analysis simplifies the comparison, removing possible numerical causes of discrepancy.
+
+The Orr--Sommerfeld equation is here discretized using Python and scikit-fem, in classical and primitive forms with Hermite and Mini elements, respectively.  The solutions for the standard test problem of plane Poiseuille flow show the primitive formulation to be simple, clear, well-conditioned, and very accurate.
+
+
+% --- Add keywords, up to 6, separated by semicolons
+\keywords
+incompressible viscous fluid;
+parallel shear flow;
+linear stability;
+Orr--Sommerfeld;
+mixed finite elements;
+scikit-fem
+
+
+\section{Introduction}
+
+The Orr--Sommerfeld equation~\cite[eq.\ 25.12]{drazin2004hydrodynamic}, along with its extensions to e.g.\ natural convection~\cite{gershuni1953ustoichivosti, plapp1957analytic}, has for over a century been the starting point for much of the analysis of the stability of viscous flow.  It is derived from the Navier--Stokes equation and describes the linearized growth of small perturbations to a basic solution which is parallel, constant in time, and varying only in one transverse direction.  Although three dependent variables are involved (pressure and the longitudinal and transverse components of velocity, the spanwise being able to be neglected following Squire's theorem~\cite{squire1933stability}), the Orr--Sommerfeld equation is a scalar equation in the streamfunction, the pressure having been eliminated by the plane-poloidal projection of the linearized Navier--Stokes equation~\cite{mcbain2005plane}.
+
+Although the Orr--Sommerfeld equation retains a central place in textbooks on hydrodynamic stability~\cite{drazin2002introduction, criminale2003theory, drazin2004hydrodynamic, charru2007instabilites}, the subject is changing; increasingly the stability of two- and three-dimensional steady flows is considered~\cite{barkley2002threedimensional, theofilis2003advances, bengana2019bifurcation}.  For these problems, except in the simplest geometries (typically only spheres and infinite cylinders and channels), a streamfunction is unavailable or unappealing and the equations governing the perturbation are left in primitive form; i.e.\ in terms of the velocity and pressure.  This raises the question of whether this is feasible for one-dimensional problems~\cite{paredes2013order}.  One-dimensional flows remain important for pedagogical purposes but also because many applications are well approximated in this way; e.g.\ boundary layers and jets~\cite{varieras2007selfsustained}.  We suggest here that the pedagogy is hindered by the unnecessary introduction in the one-dimensional case of the streamfunction; closer analogy with higher dimensions could be achieved by remaining in primitive form.  In this paper therefore we investigate the use of primitive variables and find that other advantages appear too: the primitive equations are more simply discretized, the resulting algebraic systems are better conditioned, and the results more accurate.
+
+\section{The Orr--Sommerfeld equation}\nopagebreak
+The evolution in  time $t$ of the  velocity $\mathbf u$ and pressure $p$ of a fluid of constant density and kinematic viscosity $\nu$ are taken to be governed by the Navier--Stokes equations
+\begin{subequations}\label{eq:ns}
+  \begin{align}
+    \frac{\partial\mathbf u}{\partial t} + \mathbf u\cdot\nabla\mathbf u
+    & = -\nabla p + R^{-1} \Delta \mathbf u \\
+    \nabla\cdot\mathbf u & = 0,\label{eq:ns-continuity}
+  \end{align}
+\end{subequations}
+where $R = VL/\nu$ is the Reynolds number for a characteristic velocity $V$ and length $L$.
+
+Between parallel plane walls $-1 < z < 1$, these
+equations admit the steady unidirectional `plane Poiseuille' solution~\cite[eq.\ 25.3]{drazin2004hydrodynamic} $\mathbf u = U (z)\mathbf i$ with $ U = 1 - z^2$; see figure~\ref{fig:geometry}.  Small perturbations to this of wavenumber $\alpha$ and wavespeed $c$~\cite[eq.\ 21.1]{drazin2004hydrodynamic}
+\begin{equation}
+  \{u(z)\mathbf i + w(z)\mathbf k\} \mathrm e^{\mathrm i\alpha (x - ct)}, p (z) \mathrm e^{\mathrm i\alpha (x - ct)},
+\end{equation}
+are governed by the linearized equation~(\ref{eq:ns}) as
+\begin{subequations}\label{eq:prorso}
+  \begin{align}
+    \label{eq:prorso-u}
+  \left\{\mathrm D^2 - \alpha^2 - \mathrm i\alpha R (U - c)\right\} u
+  &= R U' w + \mathrm i\alpha R p \\
+  \left\{\mathrm D^2 - \alpha^2 - \mathrm i \alpha R (U - c)\right\} w
+  &= R \mathrm D p  \label{eq:prorso-w} \\
+  \mathrm i\alpha u + \mathrm D w &= 0, \label{eq:prorso-continuity}
+  \end{align}
+\end{subequations}
+where the prime and $\mathrm D$ both represent $\mathrm d/\mathrm dz$.
+
+Traditionally the next step is to eliminate the pressure and equation of continuity~(\ref{eq:prorso-continuity}) by introducing the streamfunction $\phi$ in terms of which $u=\phi'$ and $w=\mathrm i\alpha\phi$ to give the (classical) Orr--Sommerfeld equation~\cite[eq.\ 25.12]{drazin2004hydrodynamic} :
+\begin{equation}\label{eq:os}
+  (\mathrm i\alpha R)^{-1} \left(\mathrm D^2 - \alpha^2\right)^2 \phi
+  = (U - c)\left(\mathrm D^2 - \alpha^2\right)\phi - U''\phi.
+\end{equation}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\columnwidth]{figures/geometry/geometry.png}
+  \caption{Plane Poiseuille flow}\label{fig:geometry}
+\end{figure}
+
+\subsection{Boundary Conditions and Symmetry}
+The boundary conditions are that $u$ and $w$, or $\phi$ and $\phi'$, vanish on the walls $z=\pm 1$.  Since $U(z) = U(-z)$, the eigenmodes are either even ($\phi(z) = \phi(-z)$) or odd; in the standard test-case, only the even modes are considered and so the domain is reduced to $0 < z < 1$ with the additional conditions that $u'$ and $w$, or $\phi'$, vanish on $z = 0$.  There are no conditions on the pressure.
+
+\section{Discretization by Finite Elements}
+The Orr--Sommerfeld equation~(\ref{eq:os}) has been discretized in many ways, and indeed inspired many new ways: orthonormalized shooting~\cite{davey1973simple}, exterior algebraic compound matrices~\cite{allen2002numerical}, viscous Green functions~\cite{mcbain2009numerical}, \ldots; however, `following the influential work of Orszag~\cite{orszag1971accurate}, spectral spatial discretization has historically been the method of choice'~\cite{paredes2013order}.  Here we propose to depart from this and use simple finite elements from a general purpose library~\cite{gustafsson2020scikit-fem}.
+
+\subsection{Hermite Elements for the Classical Orr--Sommerfeld Equation}
+The weak form~\cite[p.~2]{ern2005elements} of~(\ref{eq:os}) is obtained by multiplying by a test function $\psi$ and integrating by parts across the slot.
+
+\begin{eqnarray}\label{eq:weakos}
+(\mathrm i\alpha R)^{-1}\left\{
+    (\psi'', \phi'')
+    + 2\alpha^2(\psi', \phi')
+    + \alpha^4(\psi, \phi)
+  \right\} \\
+ + \alpha^2 (U\psi, \phi)
+  + (U\psi' + U'\psi, \phi')
+  + (U''\psi, \phi) \nonumber \\
+  = c\left\{(\psi', \phi') + \alpha^2(\psi, \phi)\right\},
+  \qquad\forall\psi. \nonumber
+\end{eqnarray}
+
+In the finite element method, this weak form is discretized by dividing the domain into segments with a finite basis of functions on each and applying a quadrature rule.  These steps are automated in modern finite element libraries~\cite{gustafsson2020scikit-fem} and so not detailed here; the input form required is essentially~(\ref{eq:weakos}).
+
+Because the classical Orr--Sommerfeld equation~(\ref{eq:os}) is fourth order, second derivatives of the test $\psi$ and trial $\phi$ functions appear in the weak form~(\ref{eq:weakos}), and conventional $C^0$ continuous piecewise-polynomial elements ($\mathbb P_1, \mathbb P_2, \ldots$) cannot be used: the basis functions must be $C^1$ continuously differentiable.  This is just as for the Euler--Bernoulli beam equation and so the one-dimensional Hermite elements used there~\cite[p.~29]{ern2005elements} may also serve here.  These elements have degrees of freedom for the derivatives as well as the values at each end; see figure~\ref{fig:basis}.
+
+\begin{figure}\centering
+  \includegraphics[width=\columnwidth]{figures/basis/basis.png}
+  \caption{One-dimensional basis functions on the canonical element
+    $0<\zeta<1$ which is mapped affinely to the $i$-th element $z_i <
+    z < z_{i+1}$, scaling the Hermite degrees of freedom to preserve
+    the derivatives.}\label{fig:basis}
+\end{figure}
+
+Thus far, this follows Mamou \& Khalid~\cite[eq.~8]{mamou2004finite}; however their method of imposing essential boundary conditions~\cite[eq.~10]{mamou2004finite} results in spurious eigenvalues, so we instead express the vector of degrees of freedom of the unknown as the sum of known and unknown parts and condense the algebraic system by eliminating the former; besides being quite standard~\cite[eq.~12.53]{ern2005elements} and easily automated in a general purpose libr
+ary~\cite{gustafsson2020scikit-fem}, this approach does not introduce spurious eigenvalues.\vspace{4ex}
+
+\subsection{Mini Elements for the Primitive Orr--Sommerfeld Equation}
+Hermite elements could be avoided if the fourth-order Orr--Sommerfeld equation~(\ref{eq:os}) were reduced to a pair of second-order equations; e.g.\ by introducing the vorticity as an auxiliary variable, as also often recommended as a means of improving the condition~\cite{dongarra1996chebyshev}; however, it may be observed that a second-order system~(\ref{eq:prorso}) was already in hand: the `primitive Orr--Sommerfeld equation', in terms of the primitive dependent variables, velocity and pressure.  Retaining the `algebraic' (in the sense of differential--algebraic equations~\cite{brenan1996numerical} \cite[\S 8.3]{azaez2011lments}) continuity constraint~(\ref{eq:prorso-continuity}) along with the `differential' momentum equations~(\ref{eq:prorso-u}--\ref{eq:prorso-w}) (although these have also already been rendered algebraic by the Fourier transformation $\partial/\partial t \rightarrow \mathrm i\alpha c$) leads to the `descriptor approach`, already shown to be viable with a Chebyshev discretization~\cite{manning2007descriptor}.
+
+The weak form of~(\ref{eq:prorso}) is obtained using three test functions, $\upsilon_x, \upsilon_z$, and $\varpi$:
+\begin{align} \label{eq:weak-prorso}
+  \mathrm i\alpha R \left(U\upsilon_x, u\right)
+  + & \alpha^2 \left(\upsilon_x, u\right)
+  + \left(\upsilon_x', u'\right)
+  + R\left(U'\upsilon_x, w\right) 
+  + \mathrm i\alpha R\left(\upsilon_x, p\right)
+  \nonumber \\
+  + &   \mathrm i\alpha R \left(U\upsilon_z, w\right)
+  + \alpha^2 \left(\upsilon_z, w\right)
+  + \left(\upsilon_z', w'\right)
+  - R\left(\upsilon_z', p\right) \nonumber \\ 
+  - & \mathrm i\alpha R\left(\varpi, u\right)
+  - R\left(\varpi, w'\right)
+ \\  & = \mathrm i\alpha R c\left\{
+  \left(\upsilon_x, u\right)
+  + \left(\upsilon_z, w\right)
+  \right\},
+  \qquad\forall\upsilon_x, \upsilon_z,  \varpi.  \nonumber
+\end{align}
+
+Since, unlike in the weak classical Orr--Sommerfeld equation~(\ref{eq:weakos}), only first derivatives of $u$ and $w$ appear, the latter can be discretized with standard $C^0$ elements.  There remains a choice of function spaces for these velocity components and for the pressure.  There is much literature on compatible choices for the Navier--Stokes equations~\cite{boffi2008finite, azaez2011lments}; Taylor--Hood~\cite{taylor1973numerical} and Mini~\cite[\S 6.2.4]{ern2005elements} elements are popular.  Both use piecewise-linear $\mathbb P_1$ elements for the pressure; for the components of velocity the former use piecewise-quadratic $\mathbb P_2$ element while the latter enhance $\mathbb P_1$ just enough to pass the Ladyzhenskaya--Babu\v ska--Brezzi condition~\cite[\S 6.1.2]{ern2005elements}, failing which often causes spurious pressure modes---certainly a danger to be avoided if the pressure is not to be eliminated.  We are unaware of previous use of the one-dimensional Mini element, but by analogy with higher dimensions, to the linear nodal degrees of freedom $1-\zeta$ and $\zeta$ it adds the quadratic `bubble' $\zeta (1-\zeta)/4$, as shown in figure~\ref{fig:basis}.  Unlike in higher dimensions, the one-dimensional Mini element spans the same function space as Taylor--Hood so there is little to choose between them in exact arithmetic; here Mini are used since it seems to be slightly better conditioned.
+
+\subsection{The Generalized Algebraic Eigenvalue Problem}
+
+Following discretization, (\ref{eq:weakos}) or (\ref{eq:weak-prorso}) is a generalized algebraic eigenproblem of the form $Au=\mathrm i\alpha c Bu$ with non-Hermitian $A$ and symmetric semidefinite $B$.  The most dangerous modes are those with largest $\Im c$.  These are conveniently computed with ARPACK in inverse mode ($\sigma=0$) as wrapped by SciPy~\cite{scipy}.
+
+
+\section{Numerical Results}
+The first thirty complex eigenvalues $c$ for the standard test case $R = 10^4$ and $\alpha = 1$ have been tabulated~\cite[table~3.1]{criminale2003theory}.  Both the classical--Hermite and primitive--Mini schemes are adequate to achieve graphical accuracy with 64 nodes, as shown in figure~\ref{fig:spectrum}.
+\begin{figure}[h]\centering
+  \includegraphics[width=\columnwidth]{figures/spectrum/spectrum.png}
+  \caption{Spectrum at $R=10^4$ and $\alpha=1$, as tabulated~\cite[table~3.1]{criminale2003theory} and as computed with 63 classical Hermite or primitive Mini finite elements}\label{fig:spectrum}
+\end{figure}
+
+\subsection{Mesh Convergence}
+The convergence of the most dangerous eigenvalue in the classical Hermite and primitive Mini schemes is assessed against the best known estimate $c = 0.2375264888204682 + 0.0037396706229799\mathrm i$~\cite{kirchner2000computational, paredes2013order}  (overlooked in the earlier historical table~\cite{mcbain2009numerical}); see figure~\ref{fig:error}.
+\begin{figure}\centering
+  \includegraphics[width=\columnwidth]{figures/convergence/error.png}
+  \caption{Convergence of the most dangerous eigenvalue}\label{fig:error}
+\end{figure}
+
+For equal small numbers of elements $1/h$, the two schemes converge similarly, like $h^4$, but as $h$ decreases further, round-off errors accumulate.  This affects the classical--Hermite scheme more strongly so that the primitive--Mini is able to achieve a more accurate solution.
+
+\subsection{Condition}
+To investigate the sensitivity of the numerical eigenvalues in the two schemes, the condition number of the leading eigenvalue $c$ is calculated according to~\cite{dedieu1997condition}
+\begin{equation}
+  \frac{\| v\| \| u\|}{\sqrt{|v^\mathrm H A u|^2 + |v^\mathrm H B u|^2}}
+\end{equation}
+where $v^\mathrm H A = \mathrm i\alpha cv^\mathrm H B$ and $Au=\mathrm i\alpha cBu$; i.e.\ $u$ and $v$ are the right and left generalized eigenvectors of $A$ and $B$.  As shown in figure~\ref{fig:condition}, the primitive scheme is a thousand times better conditioned, consistent with the relative errors achieved in figure~\ref{fig:error}.
+
+\begin{figure}\centering
+  \includegraphics[width=\columnwidth]{figures/convergence/condition.png}
+  \caption{Condition of the most dangerous eigenvalue}\label{fig:condition}
+\end{figure}
+
+\subsection{Richardson Extrapolation}
+Because (unlike in `infinite order' spectral schemes~\cite{orszag1971accurate}) the finite element eigenvalues converge like a definite power of the mesh size, they are good candidates for Richardson extrapolation, i.e., for estimates $c (2h)$ and $c (h)$ on meshes of size $2h$ and $h$, the extrapolation to $h \rightarrow 0$ is
+\begin{equation}
+  c (0) \sim c (h) + \frac{c(h) - c(2h)}{2^p - 1},
+\end{equation}
+where here, as observed in figure~\ref{fig:error}, $p=4$.  The values extrapolated from each such pair are plotted in figure~\ref{fig:error}.
+
+
+\section{Discussion}
+Besides the use of standard $C^0$ finite elements and the improvement of condition, an advantage of the primitive system is that when the linear stability of two- and three-dimensional base flows is to be considered, the elimination of pressure is more difficult, particularly in nontrivial geometries.  It is much more common in that context to use the primitive equations~\cite{barkley2002threedimensional, theofilis2003advances, bengana2019bifurcation}.  The use of the primitive Orr--Sommerfeld equation in one dimension too then removes an artificial division in the subject, easing the step from one- to multidimensional analysis~\cite{paredes2013order}.
+
+Another important practical advantage of the primitive Orr--Sommerfeld equation~(\ref{eq:prorso}) is that it only requires the first derivative $U'$ of the base velocity profile; the classical equation~(\ref{eq:os}) requires the second, $U''$.  Although this is trivial in the test-cases of plane Couette or Poiseuille flow, the Orr--Sommerfeld equation is often applied to much more complicated nearly parallel flows like boundary layers and jets.  The second derivative will be noisier if the velocity profile is sampled from experiment or simulation, as done for jets in~\cite{varieras2007selfsustained}.  This relaxed requirement is particularly convenient in the finite element context; if the base flow is obtained from a  two- or three-dimensional Taylor--Hood or Mini element solution, it will immediately have its first derivative available, since the bases have known derivatives.  For example, instead of specifying $U (z) = 1 - z^2$, it can be taken as the finite element solution of $U'' = -2$ with $U' (0) = U(1) = 0$ using the same elements as for the perturbation.
+
+\section{Conclusions}
+The simplicity of the primitive Orr--Sommerfeld finite element approach and the accuracy obtained raises a question: Is the classical Orr--Sommerfeld equation obsolete?  Could the theory of linear hydrodynamic stability be rewritten proceeding directly from~(\ref{eq:prorso}), relegating~(\ref{eq:os}) to a historical footnote?  Here the primitive equation was returned to because of a wish to use standard $C^0$ finite elements, but it has also recently arisen twice independently.  First, under the name `descriptor' it was suggested by Manning et al~\cite{manning2007descriptor} as a means of avoiding the spurious eigenvalues that plague Chebyshev discretizations (though these do not arise in our Hermite finite element discretization of the classical equation) and of keeping the highest order of derivative down to second instead of increasing it to fourth (and rather than subsequently reducing it back down from fourth as recommended by Dongarra et al~\cite{dongarra1996chebyshev}).  Second, under the name `one-dimensional linearized Navier--Stokes equations'  by Paredes et al~\cite{paredes2013order}, with an eye to the linear stability of two- and three-dimensional flows, since the approach then is more uniform for problems of different dimension, enabling more relevant testing of general concepts in one dimension much more cheaply and against more plentiful reliable reference solutions.
+
+Finally, the success of the routine application of the finite element method on both the primitive and classical Orr--Sommerfeld problems might give pause to those who would add to the longrunning stream of novel elaborate discretizations~\cite[e.g.]{mcbain2009numerical}; the problem may be a testing ground for them, but are they really needed for it?
+
+\section{Acknowledgements}
+Thank you Spencer Bryngelson, Steve Armfield, Jim Denier, Andre Aquino, and Sam
+Mallinson for helpful discussions on the history and applications of
+the Orr--Sommerfeld equation.  Thank you Tom Gustafsson for
+scikit-fem~\cite{gustafsson2020scikit-fem}, in particular the addition of one-dimensional Hermite
+elements in March 2020.
+
+%%%%%
+%%%%%%% change "1" to "11" in following line if > 10 references.
+%%%%%
+
+\bibliography{mcbain2020primitive}
+
+\end{document}
