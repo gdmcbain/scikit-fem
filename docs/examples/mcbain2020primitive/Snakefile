@@ -1,0 +1,22 @@
+subworkflow geometry:
+     workdir: 'figures/geometry'
+subworkflow basis:
+     workdir: 'figures/basis'
+subworkflow spectrum:
+     workdir: 'figures/spectrum'
+subworkflow convergence:
+     workdir: 'figures/convergence'
+rule all:
+     input: 'mcbain2020primitive.pdf'
+rule pdf:
+     input: '{a}.tex', '{a}.bib', geometry('geometry.png'), basis('basis.png'), spectrum('spectrum.png'), convergence('error.png'), convergence('condition.png')
+     output: '{a}.pdf'
+     shell: 'rubber -d {input[0]}'
+rule bibtex:
+     input: 'bibtex/compile.sh'
+     output: 'mcbain2020primitive.bib'
+     shell: 'bash {input}'
+rule clean:
+     shell: 'rm -rf *~ *.pdf *.bib *.aux *.bbl *.blg *.log'
+rule bibclean:
+     shell: 'rm -rf *~ *.bib *.bbl *.blg'
