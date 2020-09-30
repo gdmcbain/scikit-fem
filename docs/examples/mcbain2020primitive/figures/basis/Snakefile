@@ -1,0 +1,6 @@
+rule all:
+     input: 'basis.png'
+rule plot:
+     input: '{a}.py'
+     output: '{a}.png'
+     shell: 'python {input}'

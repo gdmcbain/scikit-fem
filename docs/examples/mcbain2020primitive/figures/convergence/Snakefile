@@ -1,0 +1,12 @@
+rule all:
+     input: expand('{a}.png', a=['error', 'condition'])
+rule plot:
+     input: '{a}.py', 'classical.csv', 'primitive.csv'
+     output: '{a}.png'
+     shell: 'python {input}'
+rule run:
+     input: '{a}.py'
+     output: '{a}.csv'
+     shell: 'python {input}'
+rule clean:
+     shell: 'rm -rf *~ *.csv *.png *-verify.txt'
