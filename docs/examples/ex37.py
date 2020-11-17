@@ -30,4 +30,28 @@ x = solve(A, b)
 M, X = ubasis.refinterp(u, Nrefs=0)
 
 if __name__ == "__main__":
-    M.save('ex37.vtk', {'sol': X})
+
+    from pathlib import Path
+
+    import meshio
+
+    M.save('vtk', {'sol': X})
+
+    exterior_facet_basis = FacetBasis(m, ElementTetP0(), intorder=1)
+    boundary_facets = boundary_facets()
+
+    meshio.Mesh(
+        points=m.p.T,
+        cells=[
+            ("triangle", m.facets[:, boundary_facets].T),
+        ],
+        cell_data={
+            "-sigma": [
+                -(
+                    exterior_facet_basis.normals.value[:, :, 0]
+                    * sigma[boundary_facets]
+                ).T,
+            ],
+            "u": [u[m.f2t[0, boundary_facets]]],
+        },
+    ).write(f"{Path(__file__).stem}-trace.vtk")
