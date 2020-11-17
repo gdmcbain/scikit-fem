@@ -229,10 +229,26 @@ def get_quadrature_tet(norder: int) -> Tuple[np.ndarray, np.ndarray]:
 def get_quadrature_tri(norder: int) -> Tuple[np.ndarray, np.ndarray]:
     """Return a nth order accurate quadrature rule for the reference triangle
     (0,0) (0,1) (1,0)."""
-    if norder <= 1:
-        norder = 2
+    norder = max(norder, 1)
     try:
         return {
+            1: (
+                np.array(
+                    [
+                        [
+                            1.666666666666666666666e-01,
+                        ],
+                        [
+                            1.666666666666666666666e-01,
+                        ],
+                    ],
+                ),
+                np.array(
+                    [
+                        0.5,
+                    ],
+                ),
+            ),
             2: (
                 np.array(
                     [
