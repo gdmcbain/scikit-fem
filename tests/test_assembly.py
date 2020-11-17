@@ -86,7 +86,7 @@ class IntegrateFuncOverBoundary(unittest.TestCase):
         for (mtype, etype) in cases:
             m = mtype()
             m.refine(3)
-            fb = FacetBasis(m, etype())
+            fb = FacetBasis(m, etype(), intorder=2)
 
             @BilinearForm
             def uv(u, v, w):
@@ -109,7 +109,7 @@ class IntegrateFuncOverBoundaryPart(unittest.TestCase):
         m = mtype()
         m.refine(3)
         bnd = m.facets_satisfying(lambda x: x[0] == 1.0)
-        fb = FacetBasis(m, etype(), facets=bnd)
+        fb = FacetBasis(m, etype(), facets=bnd, intorder=2)
 
         @BilinearForm
         def uv(u, v, w):
