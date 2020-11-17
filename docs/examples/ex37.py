@@ -27,7 +27,7 @@ b = asm(linf, basis)
 x = solve(A, b)
 
 (sigma, rtbasis), (u, ubasis) = basis.split(x)
-M, X = ubasis.refinterp(u, Nrefs=0)
+
 
 if __name__ == "__main__":
 
@@ -35,10 +35,8 @@ if __name__ == "__main__":
 
     import meshio
 
-    M.save('vtk', {'sol': X})
-
     exterior_facet_basis = FacetBasis(m, ElementTetP0(), intorder=1)
-    boundary_facets = boundary_facets()
+    boundary_facets = m.boundary_facets()
 
     meshio.Mesh(
         points=m.p.T,
