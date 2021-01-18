@@ -155,11 +155,14 @@ class MeshQuad(Mesh2D):
         return cls(p, t)
 
     def _build_mappings(self):
+        self.facets, self.t2f, self.f2t = self._mappings()
+
+    def _mappings(self):
         # do not sort since order defines counterclockwise order
         # self.t=np.sort(self.t,axis=0)
 
         # define facets: in the order (0,1) (1,2) (2,3) (0,3)
-        self.facets = np.sort(np.hstack((
+        facets = np.sort(np.hstack((
             self.t[[0, 1]],
             self.t[[1, 2]],
             self.t[[2, 3]],
@@ -167,17 +170,17 @@ class MeshQuad(Mesh2D):
         )), axis=0)
 
         # get unique facets and build quad-to-facet mapping: 4 (edges) x Nquads
-        tmp = np.ascontiguousarray(self.facets.T)
+        tmp = np.ascontiguousarray(facets.T)
         tmp, ixa, ixb = np.unique(tmp.view([('', tmp.dtype)] * tmp.shape[1]),
                                   return_index=True, return_inverse=True)
-        self.facets = self.facets[:, ixa]
-        self.t2f = ixb.reshape((4, self.t.shape[1]))
+        facets = facets[:, ixa]
+        t2f = ixb.reshape((4, self.t.shape[1]))
 
         # build facet-to-quadrilateral mapping: 2 (quads) x Nedges
-        e_tmp = np.hstack((self.t2f[0],
-                           self.t2f[1],
-                           self.t2f[2],
-                           self.t2f[3]))
+        e_tmp = np.hstack((t2f[0],
+                           t2f[1],
+                           t2f[2],
+                           t2f[3]))
         t_tmp = np.tile(np.arange(self.t.shape[1]), (1, 4))[0]
 
         e_first, ix_first = np.unique(e_tmp, return_index=True)
@@ -185,12 +188,13 @@ class MeshQuad(Mesh2D):
         e_last, ix_last = np.unique(e_tmp[::-1], return_index=True)
         ix_last = e_tmp.shape[0] - ix_last - 1
 
-        self.f2t = np.zeros((2, self.facets.shape[1]), dtype=np.int64)
-        self.f2t[0, e_first] = t_tmp[ix_first]
-        self.f2t[1, e_last] = t_tmp[ix_last]
+        f2t = np.zeros((2, facets.shape[1]), dtype=np.int64)
+        f2t[0, e_first] = t_tmp[ix_first]
+        f2t[1, e_last] = t_tmp[ix_last]
 
         # second row to -1 if repeated (i.e., on boundary)
-        self.f2t[1, np.nonzero(self.f2t[0, :] == self.f2t[1, :])[0]] = -1
+        f2t[1, np.nonzero(f2t[0, :] == f2t[1, :])[0]] = -1
+        return facets, t2f, f2t
 
     def _uniform_refine(self):
         """Perform a single mesh refine that halves 'h'. Each

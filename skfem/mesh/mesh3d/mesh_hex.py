@@ -165,7 +165,11 @@ class MeshHex(Mesh3D):
 
     def _build_mappings(self):
         """Build element-to-facet, element-to-edges, etc. mappings."""
-        self.edges = np.sort(np.hstack((
+        self.facets, self.t2f, self.f2t, self.edges, self.t2e = self._mappings()
+
+    def _mappings(self):
+        """Build element-to-facet, element-to-edges, etc. mappings."""
+        edges = np.sort(np.hstack((
             self.t[[0, 1]],
             self.t[[0, 2]],
             self.t[[0, 3]],
@@ -181,16 +185,16 @@ class MeshHex(Mesh3D):
         )), axis=0)
 
         # unique edges
-        self.edges, ixa, ixb = np.unique(self.edges,
-                                         axis=1,
-                                         return_index=True,
-                                         return_inverse=True)
-        self.edges = np.ascontiguousarray(self.edges)
+        edges, ixa, ixb = np.unique(edges,
+                                    axis=1,
+                                    return_index=True,
+                                    return_inverse=True)
+        edges = np.ascontiguousarray(edges)
 
-        self.t2e = ixb.reshape((12, self.t.shape[1]))
+        t2e = ixb.reshape((12, self.t.shape[1]))
 
         # define facets
-        self.facets = np.hstack((
+        facets = np.hstack((
             self.t[[0, 1, 4, 2]],
             self.t[[0, 2, 6, 3]],
             self.t[[0, 3, 5, 1]],
@@ -199,33 +203,34 @@ class MeshHex(Mesh3D):
             self.t[[3, 6, 7, 5]],
         ))
 
-        sorted_facets = np.sort(self.facets, axis=0)
+        sorted_facets = np.sort(facets, axis=0)
 
         # unique facets
         sorted_facets, ixa, ixb = np.unique(sorted_facets,
                                             axis=1,
                                             return_index=True,
                                             return_inverse=True)
-        self.facets = np.ascontiguousarray(self.facets[:, ixa])
+        facets = np.ascontiguousarray(facets[:, ixa])
 
-        self.t2f = ixb.reshape((6, self.t.shape[1]))
+        t2f = ixb.reshape((6, self.t.shape[1]))
 
         # build facet-to-hexa mapping: 2 (hexes) x Nfacets
-        e_tmp = np.hstack((self.t2f[0], self.t2f[1],
-                           self.t2f[2], self.t2f[3],
-                           self.t2f[4], self.t2f[5]))
+        e_tmp = np.hstack((t2f[0], t2f[1],
+                           t2f[2], t2f[3],
+                           t2f[4], t2f[5]))
         t_tmp = np.tile(np.arange(self.t.shape[1]), (1, 6))[0]
 
         e_first, ix_first = np.unique(e_tmp, return_index=True)
         e_last, ix_last = np.unique(e_tmp[::-1], return_index=True)
         ix_last = e_tmp.shape[0] - ix_last - 1
 
-        self.f2t = np.zeros((2, self.facets.shape[1]), dtype=np.int64)
-        self.f2t[0, e_first] = t_tmp[ix_first]
-        self.f2t[1, e_last] = t_tmp[ix_last]
+        f2t = np.zeros((2, facets.shape[1]), dtype=np.int64)
+        f2t[0, e_first] = t_tmp[ix_first]
+        f2t[1, e_last] = t_tmp[ix_last]
 
         # second row to zero if repeated (i.e., on boundary)
-        self.f2t[1, np.nonzero(self.f2t[0, :] == self.f2t[1, :])[0]] = -1
+        f2t[1, np.nonzero(f2t[0, :] == f2t[1, :])[0]] = -1
+        return facets, t2f, f2t, edges, t2e
 
     def _uniform_refine(self):
         """Perform a single mesh refine that halves 'h'. Each hex is

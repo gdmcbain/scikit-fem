@@ -71,22 +71,27 @@ class MeshLine(Mesh):
 
     def _build_mappings(self):
         """Build t2f and f2t"""
+        self.t2f, self.f2t = self._mappings()
 
-        self.t2f = self.t
+    def _mappings(self):
+        """Return t2f and f2t"""
+        t2f = self.t
         # build f2t
-        e_tmp = self.t2f.flatten()
-        t_tmp = np.tile(np.arange(self.t.shape[1]), 2)
+        e_tmp = t2f.flatten()
+        t_tmp = np.tile(np.arange(t2f.shape[1]), 2)
 
         e_first, ix_first = np.unique(e_tmp, return_index=True)
         e_last, ix_last = np.unique(e_tmp[::-1], return_index=True)
         ix_last = e_tmp.shape[0] - ix_last - 1
 
-        self.f2t = np.zeros((2, self.facets.shape[1]), dtype=np.int64)
-        self.f2t[0, e_first] = t_tmp[ix_first]
-        self.f2t[1, e_last] = t_tmp[ix_last]
+        f2t = np.zeros((2, self.facets.shape[1]), dtype=np.int64)
+        f2t[0, e_first] = t_tmp[ix_first]
+        f2t[1, e_last] = t_tmp[ix_last]
 
         # second row to zero if repeated (i.e., on boundary)
-        self.f2t[1, np.nonzero(self.f2t[0, :] == self.f2t[1, :])[0]] = -1
+        f2t[1, np.nonzero(f2t[0, :] == f2t[1, :])[0]] = -1
+        return t2f, f2t
+
 
     def _adaptive_refine(self, marked):
         """Perform an adaptive refine which splits each marked element into
