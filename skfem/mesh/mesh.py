@@ -232,10 +232,14 @@ class Mesh:
             An array of integers of size `no-splitted-elems x no-facets`.
 
         """
+        self.boundaries = self._fixed_boundaries(facets)
+
+    def _fixed_boundaries(self, facets: ndarray) -> Union[Dict[str, ndarray], None]:
         if hasattr(self, "boundaries") and self.boundaries is not None:
-            for name in self.boundaries:
-                self.boundaries[name] = (facets[:, self.boundaries[name]]
-                                         .flatten())
+            return {
+                name: facets[:, boundary].flatten() 
+                for name, boundary in self.boundaries.items()
+            }
 
     def remove_elements(self: MeshType, element_indices: ndarray) -> MeshType:
         """Construct a new mesh by removing elements.
