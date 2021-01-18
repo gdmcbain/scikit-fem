@@ -367,7 +367,7 @@ class MeshTri(Mesh2D):
         new_facets[1, t2f[1] - sz] = self.t2f[2, ix2]
         new_facets[1, t2f[0] - sz] = self.t2f[0, ix1]
 
-        self._fix_boundaries(new_facets)
+        self.boundaries = self._fixed_boundaries(new_facets)
 
     def _adaptive_refine(self, marked):
         """Refine the set of provided elements."""

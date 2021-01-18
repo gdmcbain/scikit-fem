@@ -245,7 +245,7 @@ class MeshQuad(Mesh2D):
         new_facets[0, t2f[3] - sz] = self.t2f[3, ix3]
         new_facets[1, t2f[3] - sz] = self.t2f[3, ix0]
 
-        self._fix_boundaries(new_facets)
+        self.boundaries = self._fixed_boundaries(new_facets)
 
     def to_meshtri(self, x=None):
         """Split each quad into two triangles and return MeshTri."""
