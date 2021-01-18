@@ -234,7 +234,8 @@ class Mesh:
         """
         self.boundaries = self._fixed_boundaries(facets)
 
-    def _fixed_boundaries(self, facets: ndarray) -> Union[Dict[str, ndarray], None]:
+    def _fixed_boundaries(self, facets: ndarray) -> Union[Dict[str, ndarray], 
+                                                          None]:
         if hasattr(self, "boundaries") and self.boundaries is not None:
             return {
                 name: facets[:, boundary].flatten() 
