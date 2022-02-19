@@ -44,11 +44,11 @@ def fv(v, w):
 
 
 A = asm(dudv, basis)
-f = asm(fv, basis)
+b = asm(fv, basis)
 
 D = basis.get_dofs()
 
-x = solve(*condense(A, f, D=D))
+x = solve(*condense(A, b, D=D))
 
 ybasis = basis.with_element(ElementVector(ElementTetP1()))
 y = ybasis.project(basis.interpolate(x))
