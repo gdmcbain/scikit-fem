@@ -35,40 +35,68 @@ from scipy.sparse.linalg import LinearOperator, minres
 
 from ex17 import mesh, basis, radii, joule_heating, thermal_conductivity, temperature, H
 
+
 @Functional
 def heat(w):
     from skfem.helpers import dot
+
     return dot(w.n, w.u.grad)
 
 
 dofs = {s: np.unique(basis.element_dofs[:, e]) for s, e in mesh.subdomains.items()}
 
-bases = {s: CellBasis(basis.mesh, basis.elem, elements=e) for s, e in mesh.subdomains.items()}
+bases = {
+    s: CellBasis(basis.mesh, basis.elem, elements=e) for s, e in mesh.subdomains.items()
+}
 
 L = {s: laplace.assemble(b) for s, b in bases.items()}
 f = asm(unit_load, bases["core"])
 
 interfacial_dofs = np.intersect1d(*dofs.values())
-interface = [FacetBasis(mesh, basis.elem, facets=mesh.facets_around("core", flip=flip)) for flip in range(2)]
+interface = [
+    FacetBasis(mesh, basis.elem, facets=mesh.facets_around("core", flip=flip))
+    for flip in range(2)
+]
+
 
 def subdomains(interfacial_temperature: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     x = basis.zeros()
     x[interfacial_dofs] = interfacial_temperature
     return (
-       solve(*condense(thermal_conductivity["core"] * L["core"], joule_heating * f, x=x, D=dofs["annulus"])), 
-       solve(*condense(thermal_conductivity["annulus"] * L["annulus"] + H, x=x, D=dofs["core"]))
+        solve(
+            *condense(
+                thermal_conductivity["core"] * L["core"],
+                joule_heating * f,
+                x=x,
+                D=dofs["annulus"],
+            )
+        ),
+        solve(
+            *condense(
+                thermal_conductivity["annulus"] * L["annulus"] + H, x=x, D=dofs["core"]
+            )
+        ),
     )
+
 
 def steklov(interfacial_temperature: np.ndarray) -> np.ndarray:
     temperatures = subdomains(interfacial_temperature)
-    heat_flux = np.array([heat.elemental(b, u=u) for b, u in zip(interface, temperatures)])
+    heat_flux = np.array(
+        [
+            -k * heat.elemental(b, u=u)
+            for k, b, u in zip(thermal_conductivity.values(), interface, temperatures)
+        ]
+    )
     return heat_flux.sum(0)
 
 
-steklov0 = steklov(np.ones(interfacial_dofs.size))
-K = LinearOperator((steklov0.size,)*2, lambda t: steklov(t) - steklov0, dtype=steklov0.dtype)
+steklov0 = steklov(np.zeros(interfacial_dofs.size))
+K = LinearOperator(
+    (steklov0.size,) * 2, lambda t: steklov(t) - steklov0, dtype=steklov0.dtype
+)
 
-tint = minres(K, -steklov0)[0]
+tint, exit_code = minres(K, -steklov0, np.zeros_like(temperature[interfacial_dofs]))
+print(f"{exit_code=}")
 
 # temperatures = subdomains(temperature[interfacial_dofs])
 print(temperature[interfacial_dofs])
@@ -86,7 +114,12 @@ if __name__ == "__main__":
     from skfem.visuals.matplotlib import draw, plot
 
     ax = draw(mesh)
-    plot(mesh, np.array(temperatures).max(0)[basis.nodal_dofs.flatten()], ax=ax, colorbar=True)
+    plot(
+        mesh,
+        np.array(temperatures).max(0)[basis.nodal_dofs.flatten()],
+        ax=ax,
+        colorbar=True,
+    )
     ax.get_figure().savefig(splitext(argv[0])[0] + "_solution.png")
 
     ax = draw(mesh)
